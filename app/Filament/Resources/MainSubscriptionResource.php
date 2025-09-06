@@ -7,6 +7,8 @@ use Filament\Tables\Table;
 use App\Models\MainSubscription;
 use Filament\Resources\Resource;
 use Filament\Forms\Components\Group;
+use Illuminate\Support\Facades\Auth;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Textarea;
@@ -35,19 +37,8 @@ class MainSubscriptionResource extends Resource
             ->schema([
                 Group::make([
                     Section::make("Formulaire")->schema([
-                        TextInput::make('created_by')
-                            ->label('Créé par (ID utilisateur)')
-                            ->default(auth()->id())
-                            ->disabled()   // visible mais non modifiable
-                            ->dehydrated() // sera envoyé dans la requête
-                            ->columnSpan(12)
-                            ->required(),
-                        Select::make('status')
-                            ->label('Statut')
-                            ->options([1 => 'Actif', 0 => 'Inactif'])
-                            ->default(1)
-                            ->required()
-                            ->columnSpan(5),
+                         Hidden::make('created_by')
+                        ->default(Auth::id()),
 
                         TextInput::make('name')
                             ->label('Nom')
@@ -193,13 +184,13 @@ class MainSubscriptionResource extends Resource
        /** Auto set des auteurs */
     public static function mutateFormDataBeforeCreate(array $data): array
     {
-        $data['created_by'] = auth()->id();
+        $data['created_by'] = Auth::id();
         return $data;
     }
 
     public static function mutateFormDataBeforeSave(array $data): array
     {
-        $data['updated_by'] = auth()->id();
+        $data['updated_by'] = Auth::id();
         return $data;
     }
 }
