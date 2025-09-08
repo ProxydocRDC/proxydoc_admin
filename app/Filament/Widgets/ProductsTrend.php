@@ -6,9 +6,11 @@ use App\Models\ChemProduct;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Filament\Widgets\LineChartWidget;
+use BezhanSalleh\FilamentShield\Traits\HasWidgetShield;
 
 class ProductsTrend extends LineChartWidget
 {
+    use HasWidgetShield;
 
       protected static ?string $heading = 'Nouveaux produits (14 jours)'; // <-- static ✅
     protected int|string|array $columnSpan = 'full';

@@ -6,11 +6,13 @@ use App\Models\ChemOrder;
 use App\Models\ChemPharmacy;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
-use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Card;
+use BezhanSalleh\FilamentShield\Traits\HasWidgetShield;
+use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 
 class SupplierStatsOverview extends BaseWidget
 {
+    use HasWidgetShield;
     protected ?string $heading = 'Mes statistiques';
 
     protected function getCards(): array

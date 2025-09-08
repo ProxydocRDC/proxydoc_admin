@@ -9,10 +9,12 @@ use App\Models\MainCurrency;
 use App\Models\MainSubscription;
 use Illuminate\Support\Facades\Auth;
 use Filament\Widgets\StatsOverviewWidget\Card;
+use BezhanSalleh\FilamentShield\Traits\HasWidgetShield;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 
 class DirectoryStatsOverview extends BaseWidget
 {
+    use HasWidgetShield;
     protected ?string $heading = 'Référentiels';
 
     public static function canView(): bool

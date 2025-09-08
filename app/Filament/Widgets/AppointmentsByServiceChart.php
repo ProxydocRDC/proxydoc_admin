@@ -8,9 +8,11 @@ use App\Models\ProxyAppointment;
 use Illuminate\Support\Facades\DB;
 use Filament\Widgets\BarChartWidget;
 use Illuminate\Support\Facades\Auth;
+use BezhanSalleh\FilamentShield\Traits\HasWidgetShield;
 
 class AppointmentsByServiceChart extends BarChartWidget
 {
+    use HasWidgetShield;
     protected static ?string $heading = 'RDV par service (30 jours)';
     protected int|string|array $columnSpan = 'full';
 

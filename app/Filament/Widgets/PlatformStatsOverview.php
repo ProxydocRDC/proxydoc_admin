@@ -10,10 +10,12 @@ use Illuminate\Support\Carbon;
 use App\Models\ProxyAppointment;
 use Illuminate\Support\Facades\Auth;
 use Filament\Widgets\StatsOverviewWidget\Card;
+use BezhanSalleh\FilamentShield\Traits\HasWidgetShield;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 
 class PlatformStatsOverview extends BaseWidget
 {
+    use HasWidgetShield;
     protected ?string $heading = 'Aperçu plateforme';
 
     public static function canView(): bool

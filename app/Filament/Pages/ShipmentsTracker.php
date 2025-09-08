@@ -1,18 +1,20 @@
 <?php
 namespace App\Filament\Pages;
 
-use App\Models\ChemShipment;
-use App\Models\ChemShipmentEvent;
 use Filament\Forms;
-use Filament\Forms\Components\Select;
 use Filament\Forms\Form;
 use Filament\Pages\Page;
+use App\Models\ChemShipment;
+use App\Models\ChemShipmentEvent;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
+use Filament\Forms\Components\Select;
+use BezhanSalleh\FilamentShield\Traits\HasPageShield;
 
 class ShipmentsTracker extends Page implements Forms\Contracts\HasForms
 {
-    use Forms\Concerns\InteractsWithForms;
+
+    use Forms\Concerns\InteractsWithForms,HasPageShield;
     protected static ?string $navigationIcon  = 'heroicon-o-map';
     protected static ?string $navigationGroup = 'Logistique';
     protected static string $view             = 'filament.pages.shipments-tracker';

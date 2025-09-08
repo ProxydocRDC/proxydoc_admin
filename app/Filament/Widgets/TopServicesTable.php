@@ -12,9 +12,11 @@ use Illuminate\Support\Facades\Auth;
 use Filament\Tables\Columns\TextColumn;
 use Illuminate\Database\Eloquent\Builder;
 use Filament\Widgets\TableWidget as BaseWidget;
+use BezhanSalleh\FilamentShield\Traits\HasWidgetShield;
 
 class TopServicesTable extends BaseWidget
 {
+    use HasWidgetShield;
     protected static ?string $heading = 'Top services (30 jours)';
     protected int|string|array $columnSpan = 'full';
 

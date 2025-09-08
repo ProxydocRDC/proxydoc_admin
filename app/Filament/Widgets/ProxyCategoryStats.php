@@ -5,10 +5,14 @@ namespace App\Filament\Widgets;
 use App\Models\proxy_categories;
 use Illuminate\Support\Facades\Auth;
 use Filament\Widgets\StatsOverviewWidget\Card;
+use BezhanSalleh\FilamentShield\Traits\HasWidgetShield;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 
 class ProxyCategoryStats extends BaseWidget
 {
+
+    use HasWidgetShield;
+    
     protected ?string $heading = 'Catégories (Paramètres)';
 
     protected function getCards(): array

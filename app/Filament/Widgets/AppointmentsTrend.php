@@ -6,10 +6,11 @@ use Illuminate\Support\Carbon;
 use App\Models\ProxyAppointment;
 use Illuminate\Support\Facades\Auth;
 use Filament\Widgets\LineChartWidget;
+use BezhanSalleh\FilamentShield\Traits\HasWidgetShield;
 
 class AppointmentsTrend extends LineChartWidget
 {
-
+use HasWidgetShield;
       protected static ?string $heading = 'Nouveaux RDV (14 jours)'; // <-- static ✅
     protected int|string|array $columnSpan = 'full';
 

@@ -8,10 +8,12 @@ use App\Models\ChemManufacturer;
 use App\Models\ChemPharmacyProduct;
 use Illuminate\Support\Facades\Auth;
 use Filament\Widgets\StatsOverviewWidget\Card;
+use BezhanSalleh\FilamentShield\Traits\HasWidgetShield;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 
 class CatalogStatsOverview extends BaseWidget
 {
+    use HasWidgetShield;
     protected ?string $heading = 'Catalogue';
 
     public static function canView(): bool

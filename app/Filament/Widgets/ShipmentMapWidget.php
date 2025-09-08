@@ -1,12 +1,14 @@
 <?php
 namespace App\Filament\Widgets;
 
-use App\Models\ChemShipmentEvent;
 use Filament\Widgets\Widget;
+use App\Models\ChemShipmentEvent;
 use Illuminate\Support\Facades\Auth;
+use BezhanSalleh\FilamentShield\Traits\HasWidgetShield;
 
 class ShipmentMapWidget extends Widget
 {
+    use HasWidgetShield;
     protected static string $view     = 'filament.widgets.shipment-map-widget';
     protected static ?string $heading = 'Suivi sur carte';
 

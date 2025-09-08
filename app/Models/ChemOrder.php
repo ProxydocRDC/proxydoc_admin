@@ -27,18 +27,34 @@ class ChemOrder extends Model
     {
         return $this->hasMany(ChemOrderItem::class, 'order_id');
     }
-    public function customer()
-    {return $this->belongsTo(\App\Models\User::class, 'customer_id');}
-    public function pharmacy()
-    {
-        return $this->belongsTo(\App\Models\ChemPharmacy::class, 'pharmacy_id');
-    }
+    // public function customer()
+    // {return $this->belongsTo(\App\Models\User::class, 'customer_id');}
+    // public function pharmacy()
+    // {
+    //     return $this->belongsTo(\App\Models\ChemPharmacy::class, 'pharmacy_id');
+    // }
+public function pharmacie()
+{
+    return $this->belongsTo(\App\Models\ChemPharmacy::class, 'pharmacy_id');
+}
+
+// alias pratique pour Filament (utilise le même FK)
+public function pharmacy()
+{
+    return $this->pharmacie();
+}
+
+// si besoin pour l'affichage "client"
+public function customer()
+{
+    return $this->belongsTo(\App\Models\User::class, 'customer_id');
+}
 
     // (facultatif) garde un alias si tu veux :
-    public function pharmacie()
-    {
-        return $this->pharmacy();
-    }
+    // public function pharmacie()
+    // {
+    //     return $this->pharmacy();
+    // }
 
     /** Scope pour filtrer par fournisseur */
     public function scopeForSupplier(Builder $q, int $supplierId): Builder

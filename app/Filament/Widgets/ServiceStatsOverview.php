@@ -9,10 +9,12 @@ use Illuminate\Support\Carbon;
 use App\Models\ProxyAppointment;
 use Illuminate\Support\Facades\Auth;
 use Filament\Widgets\StatsOverviewWidget\Card;
+use BezhanSalleh\FilamentShield\Traits\HasWidgetShield;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 
 class ServiceStatsOverview extends BaseWidget
 {
+    use HasWidgetShield;
     protected static ?string $pollingInterval = '60s'; // rafraîchit toutes les 60s (optionnel)
     protected ?string $heading = 'Aperçu général';
 

@@ -142,14 +142,20 @@ class ChemOrderResource extends Resource
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
 
-                TextColumn::make('customer.name')
-                    ->label('Client')
-                    ->searchable(),
+                // TextColumn::make('customer.name')
+                //     ->label('Client')
+                //     ->searchable(),
 
-                TextColumn::make('pharmacy.name')
-                    ->label('Pharmacie')
-                    ->toggleable(),
+                // TextColumn::make('pharmacy.name')
+                //     ->label('Pharmacie')
+                //     ->toggleable(),
+TextColumn::make('customer.firstname')   // pas "customer.name" si tu n'as pas ce champ
+    ->label('Client')
+    ->searchable(),
 
+TextColumn::make('pharmacy.name')        // ✅ cohérent avec l’alias ajouté
+    ->label('Pharmacie')
+    ->toggleable(),
                 BadgeColumn::make('order_status')
                     ->label('Statut')
                     ->formatStateUsing(fn(string $state) => match ($state) {

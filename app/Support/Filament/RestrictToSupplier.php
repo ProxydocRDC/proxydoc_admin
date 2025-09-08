@@ -70,11 +70,18 @@ trait RestrictToSupplier
     }
 
     /** Compatibilité: si une resource override cette méthode, on la laisse faire */
-    protected static function scopeToSupplier(Builder $q, int $supplierId): Builder
-    {
-        // Délègue au chemin par défaut
-        return static::applySupplierPathConstraint($q, static::supplierOwnerPath(), $supplierId);
-    }
+    // protected static function scopeToSupplier(Builder $q, int $supplierId): Builder
+    // {
+    //     // Délègue au chemin par défaut
+    //     return static::applySupplierPathConstraint($q, static::supplierOwnerPath(), $supplierId);
+    // }
+
+
+protected static function scopeToSupplier(Builder $q, int $supplierId): Builder
+{
+    // filtre via la relation pharmacy -> supplier_id
+    return $q->whereHas('pharmacy', fn ($p) => $p->where('supplier_id', $supplierId));
+}
 
     /** -------- Sécurité accès en lecture/édition/suppression -------- */
 

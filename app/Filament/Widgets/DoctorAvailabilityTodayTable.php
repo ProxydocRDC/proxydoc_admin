@@ -9,9 +9,11 @@ use App\Models\ProxyDoctorAvailability;
 use Filament\Tables\Columns\TextColumn;
 use Illuminate\Database\Eloquent\Builder;
 use Filament\Widgets\TableWidget as BaseWidget;
+use BezhanSalleh\FilamentShield\Traits\HasWidgetShield;
 
 class DoctorAvailabilityTodayTable extends BaseWidget
 {
+    use HasWidgetShield;
     protected static ?string $heading = 'Disponibilités du jour';
     protected int|string|array $columnSpan = 'full';
 
