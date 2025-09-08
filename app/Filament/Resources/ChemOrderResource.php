@@ -23,7 +23,7 @@ use App\Support\Filament\RestrictToSupplier;
 
 class ChemOrderResource extends Resource
 {
-    use RestrictToSupplier;
+    // use RestrictToSupplier;
     protected static ?string $model = ChemOrder::class;
 
     /** Menu & libellés */
