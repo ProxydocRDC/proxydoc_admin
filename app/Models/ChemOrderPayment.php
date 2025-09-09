@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 
 class ChemOrderPayment extends Model
 {
-    protected $table = 'chem_orders_payments';
+    protected $table = 'main_payments';
     protected $guarded = [];
      protected $casts = [
         'total_amount' => 'decimal:3',
