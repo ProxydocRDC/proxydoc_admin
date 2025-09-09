@@ -220,13 +220,13 @@ class ChemProductResource extends Resource
 
                 TextColumn::make('strength')
                     ->label('Dosage')
-                    ->formatStateUsing(fn($s, $r) => $s ? rtrim(rtrim(number_format((float) $s, 2, '.', ''), '0'), '.') . ' ' . ($r->unit ?? '') : '—')
+                    ->formatStateUsing(fn($state, $record) => $state ? rtrim(rtrim(number_format((float) $state, 2, '.', ''), '0'), '.') . ' ' . ($record->unit ?? '') : '—')
                     ->toggleable(),
 
                 // lecture : badge “Actif/Inactif”
                 BadgeColumn::make('status')
                     ->label('Statut')
-                    ->formatStateUsing(fn($s) => (int) $s === 1 ? 'Actif' : 'Inactif')
+                    ->formatStateUsing(fn($state) => (int) $state === 1 ? 'Actif' : 'Inactif')
                     ->colors([
                         'success' => fn($s) => (int) $s === 1,
                         'danger'  => fn($s)  => (int) $s === 0,
