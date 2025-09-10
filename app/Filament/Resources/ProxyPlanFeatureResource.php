@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\ProxySubscriptionPlan;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Illuminate\Database\Eloquent\Builder;
 
 class ProxyPlanFeatureResource extends Resource
 {
@@ -68,7 +69,26 @@ class ProxyPlanFeatureResource extends Resource
         return $table
             ->defaultSort('id', 'desc')
             ->columns([
-                TextColumn::make('plan.name')->label('Plan')->searchable()->sortable(),
+                TextColumn::make('plan.name')
+                    ->label('Plan')
+                    ->formatStateUsing(function ($state, $record) {
+                        $label = [
+                            'personal'   => 'Personnel',
+                            'family'     => 'Famille',
+                            'enterprise' => 'Entreprise',
+                        ][$record->plan?->type] ?? $record->plan?->type;
+
+                        return $state && $label ? "{$state} ({$label})" : ($state ?? '—');
+                    })
+                    // recherche sur nom & type du plan
+                    ->searchable(
+                        query: fn (Builder $query, string $search) =>
+                            $query->whereHas('plan', fn (Builder $q) =>
+                                $q->where('name', 'like', "%{$search}%")
+                                ->orWhere('type', 'like', "%{$search}%")
+                            )
+                    )
+                    ->sortable(),
                 TextColumn::make('feature.name')->label('Fonctionnalité')->searchable()->sortable(),
                 IconColumn::make('is_included')->label('Incluse ?')->boolean(),
                 TextColumn::make('status')

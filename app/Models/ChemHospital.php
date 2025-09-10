@@ -55,4 +55,10 @@ class ChemHospital extends Model {
     {
         return $this->mediaUrls('images');     // foreach ($model->images_urls as $url) ...
     }
+    public function tier()
+{
+    // belongsTo vers le code, pas l’ID
+    return $this->belongsTo(\App\Models\ProxyRefHospitalTier::class, 'tier_code', 'code');
+}
+
 }

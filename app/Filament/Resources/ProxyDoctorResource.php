@@ -8,6 +8,7 @@ use Filament\Forms\Set;
 use App\Models\ProxyDoctor;
 use Filament\Resources\Resource;
 use Illuminate\Support\Facades\Auth;
+use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\DatePicker;
 use App\Filament\Resources\ProxyDoctorResource\Pages;
 use Filament\Tables\Columns\{TextColumn, ToggleColumn, BadgeColumn};
@@ -66,7 +67,19 @@ class ProxyDoctorResource extends Resource
 
                     TextInput::make('rating')->numeric()->minValue(0)->maxValue(5)->step('0.1')
                             ->label('Note')->columnSpan(4),
+Select::make('primary_hospital_id')
+    ->label('Hôpital principal')
+    ->relationship('primaryHospital', 'name')  // chem_hospitals.name
+    ->searchable()
+    ->preload()
+    ->columnSpan(6),
 
+Select::make('academic_title_id')
+    ->label('Titre académique')
+    ->relationship('academicTitle', 'label')   // proxy_ref_academic_titles.label
+    ->searchable()
+    ->preload()
+    ->columnSpan(6),
                     Repeater::make('career_history')
                         ->label('Parcours (repeater → stocké en JSON)')
                         ->schema([
@@ -79,10 +92,20 @@ class ProxyDoctorResource extends Resource
                         ->collapsed()
                         ->columnSpan(12),
 
+                        TagsInput::make('expertise_skills')
+                            ->label('Compétences / Spécialisations')
+                            ->placeholder('Ex: Cardiologie, Pédiatrie… (Entrée pour valider)')
+                            ->suggestions([
+                                'Cardiologie','Pédiatrie','Dermatologie','Gynécologie',
+                                'Neurologie','Orthopédie','ORL','Ophtalmologie',
+                                'Gastro-entérologie','Oncologie','Psychiatrie','Urgences',
+                            ])
+                            ->helperText('Ajoutez une ou plusieurs spécialités. Les données sont stockées en liste JSON.')
+                            ->columnSpan(6),
 
-                            Textarea::make('expertise_skills')
-                        ->label('Compétences / Spécialisations (JSON ou texte)')
-                        ->rows(3)->columnSpan(6),
+                        //     Textarea::make('expertise_skills')
+                        // ->label('Compétences / Spécialisations (JSON ou texte)')
+                        // ->rows(3)->columnSpan(6),
                     Textarea::make('bio')->label('Bio')->rows(3)->columnSpan(6),
 
                 ])->columns(12),
@@ -99,7 +122,10 @@ class ProxyDoctorResource extends Resource
                 TextColumn::make('user.email')->label('Email')->searchable(),
                 BadgeColumn::make('languages_spoken')->label('Langues')->separator(', ')->limit(30),
                 TextColumn::make('rating')->label('Note')->sortable(),
-                TextColumn::make('created_at')->dateTime('Y-m-d H:i')->label('Créé le')->sortable(),
+                TextColumn::make('primaryHospital.name')->label('Hôpital')->toggleable(),
+                TextColumn::make('academicTitle.label')->label('Titre académique')->toggleable(),
+                TextColumn::make('created_at')->dateTime('Y-m-d H:i')->label('Créé le')->sortable()
+                ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 Tables\Filters\TernaryFilter::make('status')->label('Actif'),

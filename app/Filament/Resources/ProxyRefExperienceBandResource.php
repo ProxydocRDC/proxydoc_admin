@@ -17,7 +17,7 @@ class ProxyRefExperienceBandResource extends Resource
 
     protected static ?string $navigationIcon  = 'heroicon-o-briefcase';
     protected static ?string $navigationGroup = 'Référentiels';
-    protected static ?string $navigationLabel = 'Tranches d’expérience';
+    protected static ?string $navigationLabel = 'Annéesn d’expérience';
     protected static ?string $modelLabel       = 'Tranche d’expérience';
     protected static ?string $pluralModelLabel = 'Tranches d’expérience';
     protected static ?int    $navigationSort   = 40;

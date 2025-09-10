@@ -2,14 +2,15 @@
 
 namespace App\Filament\Resources;
 
-use App\Filament\Resources\SubscriptionPlanResource\Pages;
-use App\Models\SubscriptionPlan;
 use Filament\Forms;
-use Filament\Forms\Form;
-use Filament\Forms\Components\{Group, Section, TextInput, Textarea, Toggle, Select};
 use Filament\Tables;
+use Filament\Forms\Form;
 use Filament\Tables\Table;
+use App\Models\SubscriptionPlan;
+use Illuminate\Database\Query\Builder;
+use App\Filament\Resources\SubscriptionPlanResource\Pages;
 use Filament\Tables\Columns\{TextColumn, BadgeColumn, IconColumn};
+use Filament\Forms\Components\{Group, Section, TextInput, Textarea, Toggle, Select};
 
 class SubscriptionPlanResource extends \Filament\Resources\Resource
 {
@@ -35,6 +36,7 @@ class SubscriptionPlanResource extends \Filament\Resources\Resource
                         ->columnSpan(3),
 
                     TextInput::make('name')->label('Nom')->required()->maxLength(255)->columnSpan(3),
+
                     Textarea::make('description')->label('Description')->rows(3)->columnSpan(3),
 
                     TextInput::make('periodicity')->label('Périodicité (mois)')
@@ -63,6 +65,7 @@ class SubscriptionPlanResource extends \Filament\Resources\Resource
             ->defaultSort('id', 'desc')
             ->columns([
                 TextColumn::make('name')->label('Nom')->searchable()->sortable(),
+
                 BadgeColumn::make('type')->label('Type')->colors([
                     'primary' => ['personal', 'family', 'enterprise'],
                 ])->formatStateUsing(fn (string $state)   => [
@@ -70,6 +73,7 @@ class SubscriptionPlanResource extends \Filament\Resources\Resource
                     'family' => 'Famille',
                     'enterprise' => 'Entreprise',
                 ][$state] ?? $state),
+
                 TextColumn::make('periodicity')->label('Mois')->alignRight(),
                 TextColumn::make('price')->label('Prix')->money(fn ($record) => $record->currency),
                 TextColumn::make('max_users')->label('Utilisateurs inclus')->alignRight(),

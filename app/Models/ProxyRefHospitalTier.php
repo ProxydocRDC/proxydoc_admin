@@ -13,4 +13,10 @@ class ProxyRefHospitalTier extends Model
         'status' => 'integer',
         'rate'   => 'decimal:2',
     ];
+    public function hospitals()
+{
+    // hasMany vers la clé texte
+    return $this->hasMany(\App\Models\ChemHospital::class, 'tier_code', 'code');
+}
+
 }

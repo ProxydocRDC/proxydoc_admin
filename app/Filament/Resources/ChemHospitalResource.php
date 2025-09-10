@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 use App\Models\ChemHospital;
 use App\Models\MainCity;
 use App\Models\MainCountry;
+use App\Models\ProxyRefHospitalTier;
 use App\Models\ProxyService;
 use Filament\Forms\Components\Fieldset;
 use Filament\Forms\Components\FileUpload;
@@ -140,9 +141,9 @@ class ChemHospitalResource extends Resource
                         ->label('Ville')
                         ->options(fn(Get $get) =>
                             $get('country_code')
-                            ? MainCity::where('country_id', $get('country_code'))
+                                ? MainCity::where('country_id', $get('country_code'))
                                 ->orderBy('city')->pluck('city', 'city')
-                            : []
+                                : []
                         )
                         ->searchable()
                         ->preload()
@@ -153,12 +154,12 @@ class ChemHospitalResource extends Resource
                         )
                         ->hint(fn(Get $get) =>
                             ! $get('country_code') ? 'Sélectionnez d’abord un pays.'
-                            : (MainCity::where('country_id', $get('country_code'))->exists()
-                                ? 'Provinces disponibles.' : 'Aucune province pour ce pays.')
+                                : (MainCity::where('country_id', $get('country_code'))->exists()
+                                    ? 'Provinces disponibles.' : 'Aucune province pour ce pays.')
                         )
                         ->hintColor(fn(Get $get) =>
                             ! $get('country_code') ? 'danger'
-                            : (MainCity::where('country_id', $get('country_code'))->exists() ? 'success' : 'danger')
+                                : (MainCity::where('country_id', $get('country_code'))->exists() ? 'success' : 'danger')
                         )
                         ->required()
                         ->columnSpan(4),
@@ -184,7 +185,22 @@ class ChemHospitalResource extends Resource
                     TextInput::make('emergency_phone')->label('Tél. urgences')->maxLength(30)->columnSpan(6),
                     TextInput::make('bed_capacity')->label('Capacité lits')->numeric()->minValue(0)->columnSpan(6),
                 ]),
-
+                Section::make('Classement / Niveau')
+                    ->schema([
+                        Select::make('tier_code')
+                            ->label('Niveau d’hôpital')
+                            ->options(
+                                ProxyRefHospitalTier::query()
+                                    ->where('status', 1)->orderBy('rate')
+                                    ->pluck('label', 'code')
+                            )
+                            ->searchable()
+                            ->preload()
+                            ->native(false)
+                            ->required() // si obligatoire
+                            ->rules(['exists:proxy_ref_hospital_tiers,code'])
+                            ->helperText('Choisissez le niveau (référentiel).'),
+                    ])->columns(2),
                 // ---- Services & assurances ----
                 Section::make('Services & assurances')->columns(12)->schema([
 
@@ -367,13 +383,23 @@ class ChemHospitalResource extends Resource
                         'primary' => ['hospital', 'clinic', 'specialty_center', 'lab', 'imaging'],
                     ])
                     ->formatStateUsing(fn(?string $state) => match ($state) {
-                        'hospital'                            => 'Hôpital',
-                        'clinic'                              => 'Clinique',
-                        'specialty_center'                    => 'Centre spé.',
-                        'lab'                                 => 'Laboratoire',
-                        'imaging'                             => 'Imagerie',
-                        default                               => $state,
+                        'hospital'         => 'Hôpital',
+                        'clinic'           => 'Clinique',
+                        'specialty_center' => 'Centre spé.',
+                        'lab'              => 'Laboratoire',
+                        'imaging'          => 'Imagerie',
+                        default            => $state,
                     }),
+                TextColumn::make('tier.label')
+                    ->label('Niveau')
+                    ->sortable()
+                    ->searchable(),
+
+                TextColumn::make('tier.rate')
+                    ->label('Taux')
+                    ->formatStateUsing(fn($state) => $state === null ? '—' : number_format((float) $state, 2, ',', ' ') . ' %')
+                    ->alignRight()
+                    ->sortable(),
                 IconColumn::make('has_emergency')->label('Urgences')->boolean(),
                 BadgeColumn::make('allow_pricing')
                     ->label('Tarifs publiés')
@@ -390,8 +416,8 @@ class ChemHospitalResource extends Resource
                     ->label('Fichier')
                     ->getStateUsing(fn($record) => $record->pricing_file ? 'Voir' : '—')
                     ->url(fn($record) => $record->pricing_file
-                        ? Storage::disk(config('filesystems.default', 'public'))->url($record->pricing_file)
-                        : null
+                            ? Storage::disk(config('filesystems.default', 'public'))->url($record->pricing_file)
+                            : null
                     )
                     ->openUrlInNewTab()
                     ->toggleable(isToggledHiddenByDefault: true),

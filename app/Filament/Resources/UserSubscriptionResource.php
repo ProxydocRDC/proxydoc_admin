@@ -1,28 +1,33 @@
 <?php
-
 namespace App\Filament\Resources;
 
-use App\Filament\Resources\UserSubscriptionResource\Pages;
-use App\Models\UserSubscription;
-use App\Models\SubscriptionPlan;
-use Filament\Forms;
-use Filament\Forms\Form;
-use Filament\Forms\Components\{Group, Section, TextInput, DatePicker, Select};
-use Filament\Forms\Get;
-use Filament\Forms\Set;
+use Carbon\Carbon;
 use Filament\Tables;
-use Filament\Tables\Table;
-use Filament\Tables\Columns\{TextColumn, BadgeColumn};
-use Illuminate\Support\Carbon;
+use Filament\Forms\Get;
+
+use Filament\Forms\Set;
+
+use App\Models\SubscriptionPlan;
+use App\Models\UserSubscription;
+use Filament\Forms\Components\Group;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Section;
+use Filament\Tables\Columns\BadgeColumn;
+
+use Filament\Forms\Components\DatePicker;
+
+use App\Filament\Resources\UserSubscriptionResource\Pages;
+use Filament\Forms\Components\TextInput;use Filament\Forms\Form;
+use Filament\Tables\Columns\TextColumn;use Filament\Tables\Table;
 
 class UserSubscriptionResource extends \Filament\Resources\Resource
 {
     protected static ?string $model = UserSubscription::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-credit-card';
+    protected static ?string $navigationIcon  = 'heroicon-o-credit-card';
     protected static ?string $navigationGroup = 'Abonnements';
     protected static ?string $navigationLabel = 'Abonnements utilisateurs';
-    protected static ?int    $navigationSort  = 20;
+    protected static ?int $navigationSort     = 20;
 
     public static function form(Form $form): Form
     {
@@ -38,7 +43,10 @@ class UserSubscriptionResource extends \Filament\Resources\Resource
                         ->searchable()->preload()->required()
                         ->reactive()->columnSpan(4)
                         ->afterStateUpdated(function (Set $set, Get $get, ?string $state) {
-                            if (! $state) return;
+                            if (! $state) {
+                                return;
+                            }
+
                             $months = SubscriptionPlan::find($state)?->periodicity ?? 1;
                             $start  = $get('start_date') ? Carbon::parse($get('start_date')) : Carbon::today();
                             $set('end_date', $start->copy()->addMonths($months)->toDateString());
@@ -59,11 +67,54 @@ class UserSubscriptionResource extends \Filament\Resources\Resource
 
                     Select::make('subscription_status')->label('Statut')
                         ->options([
-                            'pending'  => 'En attente',
-                            'active'   => 'Actif',
-                            'expired'  => 'Expiré',
-                            'cancelled'=> 'Annulé',
-                        ])->default('pending')->required()->columnSpan(4),
+                            'pending'   => 'En attente',
+                            'active'    => 'Actif',
+                            'expired'   => 'Expiré',
+                            'cancelled' => 'Annulé',
+                        ])->default('pending')->required()->columnSpan(4)
+                        ->disabled(function (Get $get) {
+                            // Champ désactivé si l’abonnement est "en cours" au moment de l’édition
+                            $status = $get('subscription_status');
+                            $start  = $get('start_date');
+                            $end    = $get('end_date');
+
+                            if (! $status || ! $start || ! $end) {
+                                return false;
+                            }
+
+                            $today = Carbon::today();
+                            try {
+                                $start = Carbon::parse($start);
+                                $end   = Carbon::parse($end);
+                            } catch (\Throwable $e) {
+                                return false;
+                            }
+
+                            return $status === 'active'
+                            && $start->lte($today)
+                            && $end->gte($today);
+                        })
+                        ->hint(function (Get $get) {
+                            $status = $get('subscription_status');
+                            $start  = $get('start_date');
+                            $end    = $get('end_date');
+
+                            if (! $status || ! $start || ! $end) {
+                                return null;
+                            }
+
+                            $today = Carbon::today();
+                            try {
+                                $start = Carbon::parse($start);
+                                $end   = Carbon::parse($end);
+                            } catch (\Throwable $e) {
+                                return null;
+                            }
+
+                            return ($status === 'active' && $start->lte($today) && $end->gte($today))
+                                ? 'Statut verrouillé : abonnement en cours.'
+                                : null;
+                        }),
                 ])->columns(12),
             ])->columnSpanFull(),
         ]);
@@ -84,13 +135,13 @@ class UserSubscriptionResource extends \Filament\Resources\Resource
                     'success' => 'active',
                     'danger'  => 'expired',
                     'gray'    => 'cancelled',
-                ])->formatStateUsing(fn (string $state) => [
-                    'pending'=>'En attente','active'=>'Actif','expired'=>'Expiré','cancelled'=>'Annulé'
+                ])->formatStateUsing(fn(string $state) => [
+                    'pending' => 'En attente', 'active' => 'Actif', 'expired' => 'Expiré', 'cancelled' => 'Annulé',
                 ][$state] ?? $state),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('subscription_status')->label('Statut')->options([
-                    'pending'=>'En attente','active'=>'Actif','expired'=>'Expiré','cancelled'=>'Annulé',
+                    'pending' => 'En attente', 'active' => 'Actif', 'expired' => 'Expiré', 'cancelled' => 'Annulé',
                 ]),
             ])
             ->actions([
