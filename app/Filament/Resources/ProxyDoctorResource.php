@@ -13,6 +13,9 @@ use Filament\Forms\Components\DatePicker;
 use App\Filament\Resources\ProxyDoctorResource\Pages;
 use Filament\Tables\Columns\{TextColumn, ToggleColumn, BadgeColumn};
 use Filament\Forms\Components\{Group, Section, TextInput, Textarea, Select, Hidden, Toggle, Repeater};
+use Illuminate\Support\Collection;
+use App\Support\Sms;
+use Filament\Notifications\Notification;
 
 class ProxyDoctorResource extends Resource
 {
@@ -34,7 +37,7 @@ class ProxyDoctorResource extends Resource
                     Select::make('user_id')
                         ->label('Utilisateur (compte)')
                         // si tu as le modèle User :
-                        ->relationship(name: 'user', titleAttribute: 'firstname')
+                        ->relationship(name: 'user', titleAttribute: 'Fullname')
                         ->relationship(name: 'user', titleAttribute: 'lastname')
                         ->searchable()->preload()->required()
                         ->columnSpan(6),
@@ -55,31 +58,60 @@ class ProxyDoctorResource extends Resource
                             'kiluba'   => 'Kiluba',
                         ])
                          // String -> Array pour l’affichage (quand on édite)
-    ->afterStateHydrated(function ($state, Set $set) {
-        if (is_string($state)) $set('languages_spoken', explode(',', $state));
-    })
-    // Array -> String avant sauvegarde
-    ->dehydrateStateUsing(fn ($state) => $state ? implode(',', $state) : null)
-                        ->columnSpan(4),
+                        ->afterStateHydrated(function ($state, Set $set) {
+                            if (is_string($state)) $set('languages_spoken', explode(',', $state));
+                        })
+                        // Array -> String avant sauvegarde
+                        ->dehydrateStateUsing(fn ($state) => $state ? implode(',', $state) : null)
+                        ->columnSpan(6),
+                        Select::make('services')
+                        ->label('Services proposés')
+                        ->relationship('services', 'label')   // proxy_services.label
+                        ->multiple()
+                        ->preload()
+                        ->searchable()
+                        // Array -> String avant sauvegarde
+                        ->dehydrateStateUsing(fn ($state) => $state ? implode(',', $state) : null)
+                        ->columnSpan(6)
+                        ->helperText('Choisissez les services offerts par ce médecin.')
+                        ->afterStateHydrated(function ($state, Set $set) {
+                            if (is_string($state)) $set('services', explode(',', $state));
+                        })
+                        ->saveRelationshipsUsing(function (ProxyDoctor $doctor, ?array $state) {
+                            $state = $state ?? [];
+                            // Construire les données pivot : [service_id => ['created_by'=>..., 'updated_by'=>...], ...]
+                            $pivotData = collect($state)->mapWithKeys(function ($serviceId) {
+                                return [$serviceId => [
+                                    'status'     => 1,
+                                    'created_by' => Auth::id(),
+                                    'updated_by' => Auth::id(),
+                                ]];
+                            })->all();
+
+                            $doctor->services()->sync($pivotData);
+                            }),
+
 
                     TextInput::make('education_level')
                         ->label("Niveau d'étude")->required()->maxLength(150)->columnSpan(4),
 
                     TextInput::make('rating')->numeric()->minValue(0)->maxValue(5)->step('0.1')
                             ->label('Note')->columnSpan(4),
-Select::make('primary_hospital_id')
-    ->label('Hôpital principal')
-    ->relationship('primaryHospital', 'name')  // chem_hospitals.name
-    ->searchable()
-    ->preload()
-    ->columnSpan(6),
+                    TextInput::make('years_experience')->numeric()->minValue(1)
+                            ->label('Années d\'expérience')->columnSpan(4),
+                    Select::make('primary_hospital_id')
+                        ->label('Hôpital principal')
+                        ->relationship('primaryHospital', 'name')  // chem_hospitals.name
+                        ->searchable()
+                        ->preload()
+                        ->columnSpan(6),
 
-Select::make('academic_title_id')
-    ->label('Titre académique')
-    ->relationship('academicTitle', 'label')   // proxy_ref_academic_titles.label
-    ->searchable()
-    ->preload()
-    ->columnSpan(6),
+                    Select::make('academic_title_id')
+                        ->label('Titre académique')
+                        ->relationship('academicTitle', 'label')   // proxy_ref_academic_titles.label
+                        ->searchable()
+                        ->preload()
+                        ->columnSpan(6),
                     Repeater::make('career_history')
                         ->label('Parcours (repeater → stocké en JSON)')
                         ->schema([
@@ -135,7 +167,35 @@ Select::make('academic_title_id')
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ])
-            ->defaultSort('id','desc');
+            ->defaultSort('id','desc')
+            ->bulkActions([
+                Tables\Actions\BulkActionGroup::make([
+                    Tables\Actions\BulkAction::make('notifySms')
+                    ->label('Notifier par SMS')
+                    ->icon('heroicon-o-paper-airplane')
+                    ->requiresConfirmation()
+                    ->action(function (Collection $records) {
+                        $sent = 0; $failed = 0;
+
+                        foreach ($records as $doctor) {
+                            $to = $doctor->user?->phone; // adapte si autre colonne
+                            if ($to && Sms::send($to, "Bonjour {$doctor->fullname}, votre compte médecin a été validé chez ProxyDoc.")) {
+                                $sent++;
+                            } else {
+                                $failed++;
+                            }
+                        }
+
+                        Notification::make()
+                            ->title('Notification SMS')
+                            ->body("Envoyés: {$sent}, Échecs: {$failed}")
+                            ->success()
+                            ->send();
+                    })
+                    ->visible(fn () => Auth::user()?->hasAnyRole(['super_admin','admin']) ?? false),
+                                    Tables\Actions\DeleteBulkAction::make(),
+                                ]),
+                            ]);
     }
 
    public static function getPages(): array
@@ -161,4 +221,10 @@ Select::make('academic_title_id')
         $data['updated_by'] = Auth::id();
         return $data;
     }
+    public static function getRelations(): array
+{
+    return [
+        \App\Filament\Resources\ProxyDoctorResource\RelationManagers\ServicesRelationManager::class,
+    ];
+}
 }
