@@ -3,17 +3,39 @@
 namespace App\Observers;
 
 use App\Models\User;
+use App\Models\ProxyPatient;
 use Illuminate\Support\Facades\Notification;
 use App\Notifications\StatusChangedNotification;
 
 class UserObserver
 {
+
+     public function creating(User $user): void
+    {
+        // Si rien n’est fourni, on force “patient”
+        if (empty($user->default_role)) {
+            $user->default_role = User::ROLE_PATIENT; // 5
+        }
+    }
     /**
      * Handle the User "created" event.
      */
-    public function created(User $user): void
+     public function created(User $user): void
     {
-        //
+        // Créer la fiche patient si inexistante
+        ProxyPatient::firstOrCreate(
+            ['user_id' => $user->id],
+            [
+                'status'     => 1,
+                'created_by' => $user->id,          // ou Auth::id() si en back
+                'fullname'   => trim(($user->firstname ?? '').' '.($user->lastname ?? '')),
+                'birthdate'  => now(),
+                'gender'     => 'other',
+                'phone'      => $user->phone ?? null,
+                'email'      => $user->email ?? null,
+                'relation'   => 'self',
+            ],
+        );
     }
 
     /**

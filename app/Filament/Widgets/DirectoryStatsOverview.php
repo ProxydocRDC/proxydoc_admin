@@ -7,6 +7,7 @@ use App\Models\MainStatus;
 use App\Models\MainCountry;
 use App\Models\MainCurrency;
 use App\Models\MainSubscription;
+use App\Models\SubscriptionPlan;
 use Illuminate\Support\Facades\Auth;
 use Filament\Widgets\StatsOverviewWidget\Card;
 use BezhanSalleh\FilamentShield\Traits\HasWidgetShield;
@@ -29,7 +30,7 @@ class DirectoryStatsOverview extends BaseWidget
             Card::make('Villes',        MainCity::query()->count())->icon('heroicon-o-map-pin'),
             Card::make('Devises',       MainCurrency::query()->count())->icon('heroicon-o-banknotes'),
             Card::make('Statuts',       MainStatus::query()->count())->icon('heroicon-o-tag'),
-            Card::make('Abonnements',   MainSubscription::query()->count())->icon('heroicon-o-ticket'),
+             Card::make('Abonnements',   SubscriptionPlan::query()->count())->icon('heroicon-o-ticket'),
         ];
     }
 }

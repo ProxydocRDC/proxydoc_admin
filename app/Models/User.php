@@ -15,7 +15,8 @@ class User extends Authenticatable implements FilamentUser, HasName
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable, HasRoles;
-
+  public const ROLE_DOCTOR  = 2;
+    public const ROLE_PATIENT = 5;
     /**
      * The attributes that are mass assignable.
      *

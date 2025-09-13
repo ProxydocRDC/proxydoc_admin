@@ -81,21 +81,21 @@ class AdminPanelProvider extends PanelProvider
             ->widgets([
                 // Widgets\AccountWidget::class,
                 // Widgets\FilamentInfoWidget::class,
-                    ServiceStatsOverview::class,
-                    AppointmentsByServiceChart::class,
-                    TopServicesTable::class,
-                    DoctorAvailabilityTodayTable::class,
-                     PlatformStatsOverview::class,
-                    CatalogStatsOverview::class,
-                    LogisticsStatsOverview::class,
-                    DirectoryStatsOverview::class,
+                    // ServiceStatsOverview::class,
+                    // AppointmentsByServiceChart::class,
+                    // TopServicesTable::class,
+                    // DoctorAvailabilityTodayTable::class,
+                    //  PlatformStatsOverview::class,
+                    // CatalogStatsOverview::class,
+                    // LogisticsStatsOverview::class,
+                    // DirectoryStatsOverview::class,
 
-                    AppointmentsByServiceChart::class,
-                    AppointmentsTrend::class,
-                    ProductsTrend::class,
-                    \App\Filament\Widgets\SupplierStatsOverview::class,
+                    // AppointmentsByServiceChart::class,
+                    // AppointmentsTrend::class,
+                    // ProductsTrend::class,
+                    // \App\Filament\Widgets\SupplierStatsOverview::class,
 
-            DoctorAvailabilityTodayTable::class,
+            // DoctorAvailabilityTodayTable::class,
             ])
             ->databaseNotifications()
             ->middleware([

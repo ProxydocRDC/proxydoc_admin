@@ -1,27 +1,29 @@
 <?php
 namespace App\Filament\Resources;
 
+use App\Filament\Resources\UserResource\Pages;
 use App\Models\User;
-use Filament\Tables;
+use Filament\Forms\Components\Group;
+use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Form;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
-use Filament\Forms\Form;
-use Filament\Tables\Table;
-use Filament\Resources\Resource;
-use Filament\Forms\Components\Group;
-use Illuminate\Support\Facades\Hash;
-use Filament\Forms\Components\Hidden;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Section;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
+use Filament\Resources\Pages\CreateRecord;
 use Filament\Resources\Pages\EditRecord;
+use Filament\Resources\Resource;
+use Filament\Tables;
 use Filament\Tables\Actions\ActionGroup;
 use Filament\Tables\Columns\SelectColumn;
-use Filament\Resources\Pages\CreateRecord;
-use App\Filament\Resources\UserResource\Pages;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Table;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password as PasswordRule;
+use Illuminate\Validation\Rules\Unique;
 
 class UserResource extends Resource
 {
@@ -45,12 +47,39 @@ class UserResource extends Resource
                             ->required()
                             ->columnSpan(6),
                         TextInput::make('phone')
+                            ->tel()
+                            ->required()
+                        // normalise le numéro (ex. +243..., enlève espaces)
+                            ->dehydrateStateUsing(fn($state) => preg_replace('/\s+/', '', trim($state)))
+                            ->unique(
+                                table: User::class,
+                                column: 'phone',
+                                ignoreRecord: true,
+                                modifyRuleUsing: fn(Unique $rule) => $rule->whereNull('deleted_at')
+                            )
+                            ->validationMessages([
+                                'unique' => 'Ce numéro de téléphone est déjà utilisé.',
+                            ])
+                            ->live(onBlur: true)
                         // ->tel()
                             ->required()->columnSpan(6)
                             ->maxLength(20),
                         TextInput::make('email')
                             ->email()->columnSpan(6)
-                            ->maxLength(250),
+                            ->maxLength(250)
+                        // normalise l'email avant sauvegarde (évite les doublons "Case" différents)
+                            ->dehydrateStateUsing(fn($state) => strtolower(trim($state)))
+                        // validation unique (ignore l’enregistrement en cours et exclut les soft-deleted)
+                            ->unique(
+                                table: User::class,
+                                column: 'email',
+                                ignoreRecord: true,
+                                modifyRuleUsing: fn(Unique $rule) => $rule->whereNull('deleted_at')
+                            )
+                            ->validationMessages([
+                                'unique' => 'Cet email est déjà utilisé.',
+                            ])
+                            ->live(onBlur: true),
 
                         // Mot de passe
                         TextInput::make('password')
@@ -136,7 +165,7 @@ class UserResource extends Resource
                         '2' => 'En attente',
                         '3' => 'Désactivé',
                         '4' => 'Supprimé',
-                    ])->disabled(fn() => auth()->user()?->hasRole('viewer')) // 🔒 désactive si rôle = viewer
+                    ])->disabled(fn() => Auth::user()?->hasRole('viewer')) // 🔒 désactive si rôle = viewer
                     ->afterStateUpdated(function ($record, $state) {
                         $statusText = match ($state) {
                             '1'     => 'Activé',
@@ -236,7 +265,11 @@ class UserResource extends Resource
                 ]),
             ]);
     }
-
+    public static function mutateFormDataBeforeCreate(array $data): array
+    {
+        $data['default_role'] = User::ROLE_PATIENT; // 5
+        return $data;
+    }
     public static function getRelations(): array
     {
         return [
