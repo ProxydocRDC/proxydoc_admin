@@ -3,19 +3,20 @@
 namespace App\Filament\Resources;
 
 use Filament\Forms;
+use App\Support\Sms;
 use Filament\Tables;
 use Filament\Forms\Set;
 use App\Models\ProxyDoctor;
 use Filament\Resources\Resource;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Filament\Forms\Components\TagsInput;
+use Filament\Notifications\Notification;
 use Filament\Forms\Components\DatePicker;
 use App\Filament\Resources\ProxyDoctorResource\Pages;
 use Filament\Tables\Columns\{TextColumn, ToggleColumn, BadgeColumn};
 use Filament\Forms\Components\{Group, Section, TextInput, Textarea, Select, Hidden, Toggle, Repeater};
-use Illuminate\Support\Collection;
-use App\Support\Sms;
-use Filament\Notifications\Notification;
 
 class ProxyDoctorResource extends Resource
 {
@@ -165,7 +166,16 @@ class ProxyDoctorResource extends Resource
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\DeleteAction::make()->before(function (\App\Models\ProxyDoctor $record) {
+                 DB::transaction(function () use ($record) {
+                    // détache les liaisons pivot
+                    $record->services()->detach();
+
+                    // si tu as d’autres relations dépendantes, supprime-les ici :
+                    // $record->appointments()->delete();
+                    // $record->schedules()->delete();
+                    });
+                }),
             ])
             ->defaultSort('id','desc')
             ->bulkActions([

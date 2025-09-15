@@ -1,27 +1,30 @@
 <?php
 namespace App\Filament\Resources;
 
-use App\Filament\Resources\ChemProductResource\Pages;
-use App\Models\ChemProduct;
-use Filament\Forms\Components\FileUpload;
-use Filament\Forms\Components\Group;
-use Filament\Forms\Components\Hidden;
-use Filament\Forms\Components\Section;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Toggle;
-use Filament\Forms\Form;
-use Filament\Notifications\Notification;
-use Filament\Resources\Resource;
 use Filament\Tables;
+use Filament\Forms\Form;
+use Filament\Tables\Table;
+use App\Models\ChemProduct;
+use Filament\Resources\Resource;
+use App\Imports\ChemProductsImport;
+use Filament\Forms\Components\Group;
+use Illuminate\Support\Facades\Auth;
+use Maatwebsite\Excel\Facades\Excel;
+use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Toggle;
+use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Textarea;
+use Filament\Tables\Columns\TextColumn;
+use Illuminate\Support\Facades\Storage;
+use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Columns\ImageColumn;
+use Filament\Forms\Components\FileUpload;
 use Filament\Tables\Columns\SelectColumn;
-use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
-use Filament\Tables\Table;
-use Illuminate\Support\Facades\Auth;
+use App\Filament\Resources\ChemProductResource\Pages;
 
 class ChemProductResource extends Resource
 {
@@ -272,6 +275,84 @@ class ChemProductResource extends Resource
             ->actions([
                 Tables\Actions\EditAction::make()->label('Modifier'),
                 Tables\Actions\DeleteAction::make()->label('Supprimer'),
+            ]) ->headerActions([
+                  Tables\Actions\Action::make('downloadTemplate')
+                ->label('Télécharger le modèle')
+                ->icon('heroicon-m-arrow-down-tray')
+                ->color('danger')
+                ->url(fn () => route('products.template')) // ou .csv
+                ->openUrlInNewTab()
+                ->tooltip('Modèle avec en-têtes (et exemple) pour l’import des produits'),
+                Tables\Actions\Action::make('importProducts')
+                    ->label('Importer')
+                    ->icon('heroicon-m-arrow-up-tray')
+                    ->form([
+                       FileUpload::make('file')
+                            ->label('Fichier CSV/XLSX')
+                            ->required()
+                            ->disk('local')          // stockage temporaire local
+                            ->directory('imports')   // dossier
+                            ->acceptedFileTypes([
+                                'text/csv',
+                                'text/plain',     // certains CSV
+                                'application/vnd.ms-excel',
+                                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                            ])
+                            ->preserveFilenames()
+                            ->downloadable()         // permettre de re-télécharger
+                            ->helperText('Utilise des entêtes : name, generic_name, brand_name, price_ref (obligatoires).
+Optionnels : category_code, manufacturer_name, form_name, sku, barcode, strength, dosage, unit, stock, min_stock, price_sale, price_purchase, description, is_active.'),
+                    ])
+                    ->action(function (array $data) {
+                        // 1) Récupérer le chemin du fichier
+                        $path = $data['file'] ?? null;
+                        if (!$path || !Storage::disk('local')->exists($path)) {
+                            Notification::make()->title('Fichier introuvable')->danger()->send();
+                            return;
+                        }
+
+                        // 2) Lancer l’import
+                        $import = new ChemProductsImport();
+
+                        try {
+                            Excel::import($import, Storage::disk('local')->path($path));
+                        } catch (\Throwable $e) {
+                            Notification::make()
+                                ->title('Erreur pendant l’import')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                            return;
+                        }
+
+                        // 3) Préparer un récap (succès / erreurs)
+                        $created = $import->created;
+                        $updated = $import->updated;
+
+                        $failures = $import->failures(); // liste des erreurs par ligne
+                        $errorCount = count($failures);
+
+                        $message = "Créés: {$created} • Mis à jour: {$updated}";
+                        if ($errorCount > 0) {
+                            $lines = collect($failures)
+                                ->take(5) // on en montre 5 max dans la notif
+                                ->map(fn($f) => "Ligne {$f->row()}: ".implode(', ', $f->errors()))
+                                ->implode("\n");
+
+                            $message .= "\nErreurs: {$errorCount}\n".$lines;
+                        }
+
+                        // 4) Notification Filament
+                        Notification::make()
+                            ->title('Import terminé')
+                            ->body($message)
+                            ->{$errorCount > 0 ? 'warning' : 'success'}()
+                            ->persistent() // reste visible
+                            ->send();
+
+                        // 5) (optionnel) supprimer le fichier
+                        // Storage::disk('local')->delete($path);
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\DeleteBulkAction::make()->label('Supprimer la sélection'),

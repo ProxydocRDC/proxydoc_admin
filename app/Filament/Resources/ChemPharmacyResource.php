@@ -122,13 +122,13 @@ class ChemPharmacyResource extends Resource
                                     // 12 colonnes sur mobile, 6 à partir de md
                                         ->columnSpan(['default' => 12, 'md' => 6]),
 
-                                    // Select::make('zone_id')
-                                    //     ->label("Zone")
-                                    //     ->relationship('zone', 'name') // adapte
-                                    //     ->searchable()
-                                    //     ->preload()
-                                    //     ->required()
-                                    //     ->columnSpan(4),
+                                    Select::make('zone_id')
+                                        ->label("Zone")
+                                        ->relationship('zone', 'name') // adapte
+                                        ->searchable()
+                                        ->preload()
+                                        ->required()
+                                        ->columnSpan(4),
                                 ])
                                 ->columns(12),
 

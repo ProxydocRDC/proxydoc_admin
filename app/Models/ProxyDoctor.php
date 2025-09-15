@@ -55,7 +55,7 @@ class ProxyDoctor extends Model
         ->withPivot(['status', 'created_by', 'updated_by'])
         ->withTimestamps();
 }
-    // app/Models/ProxyDoctor.php
+
 
     public function primaryHospital()
     {

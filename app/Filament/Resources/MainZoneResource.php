@@ -114,8 +114,6 @@ class MainZoneResource extends Resource
         return $table
             ->defaultSort('id', 'desc')
             ->columns([
-                 Hidden::make('created_by')
-                        ->default(Auth::id()),
                 TextColumn::make('name')->label('Zone')->searchable()->sortable(),
                 TextColumn::make('city')->label('Ville')->toggleable(),
                 TextColumn::make('country')->label('Pays')

@@ -36,6 +36,10 @@ class ChemPharmacy extends Model
     {
         return $this->belongsTo(\App\Models\User::class, 'user_id'); // adapte le modèle/champ d’affichage
     }
+    public function zone()
+    {
+        return $this->belongsTo(\App\Models\MainZone::class); // adapte le modèle/champ d’affichage
+    }
     public function supplier()
     {
         return $this->belongsTo(\App\Models\ChemSupplier::class, 'supplier_id'); // adapte le modèle/champ d’affichage

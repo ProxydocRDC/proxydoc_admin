@@ -1,22 +1,17 @@
 <?php
-
 namespace App\Filament\Resources\ChemProductResource\Pages;
 
+use App\Filament\Imports\ChemProductImporter;
 use App\Filament\Resources\ChemProductResource;
-use App\Models\ChemCategory;
-use App\Models\ChemManufacturer;
 use App\Models\ChemProduct;
 use Filament\Actions;
-use Filament\Forms\Components\FileUpload;
-use Filament\Forms\Components\Toggle;
-use Filament\Resources\Pages\ListRecords;
+use Filament\Actions\ImportAction;
+use Filament\Actions\Imports\Models\Import;
 use Filament\Notifications\Notification;
-use Illuminate\Support\Arr;
+use Filament\Resources\Pages\ListRecords;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Spatie\SimpleExcel\SimpleExcelReader;
 use Spatie\SimpleExcel\SimpleExcelWriter;
 
 class ListChemProducts extends ListRecords
@@ -24,7 +19,7 @@ class ListChemProducts extends ListRecords
     protected static string $resource = ChemProductResource::class;
 
     /** En-têtes attendues dans le fichier importé */
-    private const REQUIRED_HEADERS = [
+    public const REQUIRED_HEADERS = [
         'code', 'label', 'description', 'status', 'category_code', 'manufacturer_code', 'price', 'currency',
     ];
 
@@ -32,326 +27,254 @@ class ListChemProducts extends ListRecords
     {
         return [
             Actions\CreateAction::make()
-                ->label('Ajouter un Produit')
-                ->icon('heroicon-o-plus-circle'),
+                ->label('Ajouter un produit')
+                ->icon('heroicon-o-plus-circle')
+                ->color('success'),
+            // 🔽 Import Filament, avec notre importeur + bouton "Modèle" dans le modal
+            // ImportAction::make()
+            //     ->label('Importer (Excel/CSV)')
+            //     ->icon('heroicon-o-arrow-up-tray')
+            //     ->importer(ChemProductImporter::class)
+            //     ->chunkSize(1000)
+            // // Supprime la phrase par défaut du modal (on garde uniquement le bouton)
+            //     ->modalDescription('')
+            // // Ajoute le bouton "Modèle lisible" *dans* le footer du modal
+            //     ->extraModalFooterActions([
+            //         $this->makeTemplateCsvAction(),
+            //         // 👉 si tu veux aussi un modèle XLSX, décommente la ligne suivante
+            //         $this->makeTemplateXlsxAction(),
+            //     ])->after(function ($livewire, Import $import) {
+            //     $ok = $import->successful_rows ?? ($import->successfulRows ?? 0);
+            //     $ko = method_exists($import, 'getFailedRowsCount')
+            //         ? $import->getFailedRowsCount()
+            //         : ($import->failed_rows ?? ($import->failedRows ?? 0));
 
-            // ---------- IMPORT ----------
-            Actions\Action::make('import')
-                ->label('Importer (Excel/CSV)')
-                ->icon('heroicon-o-arrow-up-tray')
-                ->color('primary')
-                ->modalHeading('Importer des produits')
-                ->form([
-                    FileUpload::make('file')
-                        ->label('Fichier Excel ou CSV')
-                        ->acceptedFileTypes([
-                            'text/csv', 'text/plain', '.csv',
-                            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                            '.xlsx',
-                        ])
-                        ->storeFiles(false)
-                        ->required(),
-                    Toggle::make('dry_run')
-                        ->label('Mode simulation (ne rien enregistrer)')
-                        ->default(false)
-                        ->helperText('Permet de vérifier le fichier sans modifier la base.'),
-                    Toggle::make('create_refs')
-                        ->label('Créer cat./fabricants manquants')
-                        ->default(false)
-                        ->helperText("Si coché, crée la catégorie/fabricant par 'code' si introuvable."),
-                ])
-                ->extraModalFooterActions([
-                    Actions\Action::make('template')
-                        ->label('Télécharger le modèle CSV')
-                        ->icon('heroicon-o-document-arrow-down')
-                        ->url(route('chem-products.template'))
-                        ->openUrlInNewTab(),
-                ])
-                ->action(function (array $data) {
-                    $file = $data['file'] ?? null;
-                    if (! $file) {
-                        Notification::make()->title('Fichier manquant')->danger()->send();
-                        return;
-                    }
-                    $reader = SimpleExcelReader::create($file->getRealPath())
-    ->headersToSnakeCase();  // << rend snake_case automatiquement
+            //     Notification::make()
+            //         ->title('Import produits terminé')
+            //         ->body("Lignes OK : {$ok} • Erreurs : {$ko}")
+            //         ->icon('heroicon-o-check-circle')
+            //         ->success()
+            //         // ->actions([
+            //         //     Notification::make('voir')
+            //         //         ->button()
+            //         //         ->url(\App\Filament\Resources\ChemProductResource::getUrl('index'), true),
+            //         // ])
+            //         ->sendToDatabase(Auth::user()); // ← persistant (cloche)
+            // }),
 
-$rawHeaders = $reader->getHeaders();
+            // Grouper les exports dans un seul menu “Exporter”
+            Actions\ActionGroup::make([
 
-// normalisation supplémentaire: retire tout sauf [a-z0-9_]
-$normHeaders = collect($rawHeaders)
-    ->map(fn($h) => Str::of($h)
-        ->lower()
-        ->ascii()                       // enlève les accents (ex: catégorie -> categorie)
-        ->replaceMatches('/[^a-z0-9_]+/', '_')
-        ->trim('_')
-        ->value()
-    );
+                Actions\Action::make('exportCsv')
+                    ->label('CSV')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->color('success')
+                    ->action(function () {
+                        $supplierId = Auth::user()?->supplier?->id;
+                        $query      = ChemProduct::query()
+                            ->when($supplierId, fn($q) => $q->where('supplier_id', $supplierId));
 
-// synonymes acceptés -> clé attendue
-$map = [
-    'libelle'            => 'label',
-    'nom'                => 'label',
-    'statut'             => 'status',
-    'categorie'          => 'category_code',
-    'categorie_code'     => 'category_code',
-    'category'           => 'category_code',
-    'fabricant'          => 'manufacturer_code',
-    'fabricant_code'     => 'manufacturer_code',
-    'manufacturer'       => 'manufacturer_code',
-    'prix'               => 'price',
-    'montant'            => 'price',
-    'devise'             => 'currency',
-];
+                        $disk = Storage::disk('local');
+                        $dir  = 'tmp';
+                        $disk->makeDirectory($dir);
 
-$headers = $normHeaders->map(fn($h) => $map[$h] ?? $h)->all();
+                        $name = 'exports/products_' . now()->format('Ymd_His') . '.csv';
+                        $path = $disk->path($dir . '/' . basename($name));
 
-$missing = collect(self::REQUIRED_HEADERS)->diff($headers)->values();
+                        $writer = SimpleExcelWriter::create($path)->addHeader([
+                            'name', 'generic_name', 'brand_name',
+                            'category_code', 'manufacturer_code', 'form_name',
+                            'strength', 'unit', 'packaging', 'atc_code',
+                            'price_ref', 'with_prescription', 'shelf_life_months',
+                            'indications', 'contraindications', 'side_effects',
+                            'storage_conditions', 'images', 'description', 'composition',
+                        ]);
 
-if ($missing->isNotEmpty()) {
-    // (optionnel) utile pour diagnostiquer
-    $found = implode(', ', $headers);
-    Notification::make()
-        ->title('En-têtes invalides')
-        ->body('Colonnes manquantes : '. $missing->implode(', ')
-            . "\nColonnes détectées : " . $found)
-        ->danger()
-        ->send();
-    return;
-}
-
-                    // $reader = SimpleExcelReader::create($file->getRealPath());
-                    // $headers = array_map('strtolower', $reader->getHeaders());
-
-                    // // 1) Valider en-têtes
-                    // $missing = array_diff(self::REQUIRED_HEADERS, $headers);
-                    // if (! empty($missing)) {
-                    //     Notification::make()
-                    //         ->title('En-têtes invalides')
-                    //         ->body('Colonnes manquantes : ' . implode(', ', $missing))
-                    //         ->danger()
-                    //         ->send();
-                    //     return;
-                    // }
-
-                    $supplierId = Auth::user()?->supplier?->id; // peut être null (admin)
-                    $createRefs = (bool) ($data['create_refs'] ?? false);
-                    $dryRun     = (bool) ($data['dry_run'] ?? false);
-
-                    $stats = [
-                        'processed' => 0,
-                        'created'   => 0,
-                        'updated'   => 0,
-                        'skipped'   => 0,
-                        'errors'    => 0,
-                    ];
-
-                    $errors = []; // [[row, message], …]
-
-                    // 2) Lecture + traitement
-                    $rows = $reader->getRows(); // stream
-
-                    // Optionnel : transaction (utile si pas dry-run)
-                    $do = function () use ($rows, $supplierId, $createRefs, &$stats, &$errors) {
-                        $rows->each(function (array $row, int $index) use (&$stats, &$errors, $supplierId, $createRefs) {
-                            $stats['processed']++;
-
-                            // Normalisation clés insensibles à la casse
-                            $row = collect($row)->keyBy(fn ($v, $k) => Str::lower($k))->all();
-
-                            // Champs minimum
-                            $code  = trim((string) ($row['code'] ?? ''));
-                            $label = trim((string) ($row['label'] ?? ''));
-
-                            if ($code === '' || $label === '') {
-                                $stats['skipped']++;
-                                $errors[] = [$index + 2, "Ligne ignorée : 'code' ou 'label' vide."]; // +2 = header + base 1
-                                return;
-                            }
-
-                            // Résolution catégorie
-                            $categoryId = null;
-                            if ($catCode = trim((string) ($row['category_code'] ?? ''))) {
-                                $categoryId = ChemCategory::query()->where('code', $catCode)->value('id');
-                                if (! $categoryId && $createRefs) {
-                                    $categoryId = ChemCategory::create([
-                                        'status'      => 1,
-                                        'code'        => $catCode,
-                                        'name'        => $row['label'] ?? $catCode,
-                                        'created_by'  => Auth::id(),
-                                        'updated_by'  => Auth::id(),
-                                    ])->id;
-                                }
-                            }
-
-                            // Résolution fabricant
-                            $manufacturerId = null;
-                            if ($manCode = trim((string) ($row['manufacturer_code'] ?? ''))) {
-                                $manufacturerId = ChemManufacturer::query()->where('code', $manCode)->value('id');
-                                if (! $manufacturerId && $createRefs) {
-                                    $manufacturerId = ChemManufacturer::create([
-                                        'status'      => 1,
-                                        'code'        => $manCode,
-                                        'name'        => $row['label'] ?? $manCode,
-                                        'created_by'  => Auth::id(),
-                                        'updated_by'  => Auth::id(),
-                                    ])->id;
-                                }
-                            }
-
-                            try {
-                                /** @var ChemProduct $product */
-                                $product = ChemProduct::query()->firstWhere('code', $code);
-
-                                $payload = [
-                                    'label'           => $label,
-                                    'description'     => $row['description'] ?? null,
-                                    'status'          => $this->normalizeStatus($row['status'] ?? 1),
-                                    'supplier_id'     => $supplierId,
-                                    'category_id'     => $categoryId,
-                                    'manufacturer_id' => $manufacturerId,
-                                    'price'           => $this->normalizeNumber($row['price'] ?? null),
-                                    'currency'        => $this->normalizeCurrency($row['currency'] ?? null),
-                                    'updated_by'      => Auth::id(),
+                        $query->orderBy('id')->chunk(1000, function ($rows) use ($writer) {
+                            $writer->addRows($rows->map(function (ChemProduct $p) {
+                                return [
+                                    'name'               => $p->name,
+                                    'generic_name'       => $p->generic_name,
+                                    'brand_name'         => $p->brand_name,
+                                    'category_code'      => optional($p->category)->code,
+                                    'manufacturer_code'  => optional($p->manufacturer)->code,
+                                    'form_name'          => optional($p->form)->name,
+                                    'strength'           => $p->strength,
+                                    'unit'               => $p->unit,
+                                    'packaging'          => $p->packaging,
+                                    'atc_code'           => $p->atc_code,
+                                    'price_ref'          => $p->price_ref,
+                                    'with_prescription'  => $p->with_prescription ? 1 : 0,
+                                    'shelf_life_months'  => $p->shelf_life_months,
+                                    'indications'        => $p->indications,
+                                    'contraindications'  => $p->contraindications,
+                                    'side_effects'       => $p->side_effects,
+                                    'storage_conditions' => $p->storage_conditions,
+                                    // images stockées en array JSON → on exporte une liste “; ”
+                                    'images'             => is_array($p->images) ? implode('; ', $p->images) : (string) $p->images,
+                                    'description'        => $p->description,
+                                    'composition'        => $p->composition,
                                 ];
-
-                                if ($product) {
-                                    $product->fill($payload)->save();
-                                    $stats['updated']++;
-                                } else {
-                                    $payload['code']       = $code;
-                                    $payload['created_by'] = Auth::id();
-                                    ChemProduct::create($payload);
-                                    $stats['created']++;
-                                }
-                            } catch (\Throwable $e) {
-                                $stats['errors']++;
-                                $errors[] = [$index + 2, $e->getMessage()];
-                            }
+                            })->all());
                         });
-                    };
 
-                    if ($dryRun) {
-                        // Pas d'écriture : on exécute la logique sans transaction
-                        $do();
-                    } else {
-                        DB::transaction($do);
-                    }
+                        $writer->close();
 
-                    // 3) Journal d’erreurs éventuel
-                    $errorLink = null;
-                    if (! empty($errors)) {
-                        $name = 'imports/products_errors_' . now()->format('Ymd_His') . '.csv';
-                        $path = 'tmp/' . $name;
+                        return response()->download($path)->deleteFileAfterSend(true);
+                    }),
 
-                        // Sauvegarde local (disk par défaut)
-                        SimpleExcelWriter::create(Storage::path($path))
-                            ->addHeader(['row', 'error'])
-                            ->addRows(collect($errors)->map(fn ($e) => ['row' => $e[0], 'error' => $e[1]])->all())
-                            ->close();
+                Actions\Action::make('exportXlsx')
+                    ->label('XLSX')
+                    ->icon('heroicon-o-document-arrow-down')
+                    ->color('secondary')
+                    ->action(function () {
+                        $supplierId = Auth::user()?->supplier?->id;
+                        $query      = ChemProduct::query()
+                            ->when($supplierId, fn($q) => $q->where('supplier_id', $supplierId));
 
-                        $errorLink = Storage::url($path);
-                    }
+                        $disk = Storage::disk('local');
+                        $dir  = 'tmp';
+                        $disk->makeDirectory($dir);
 
-                    // 4) Notification de fin
-                    $body = collect([
-                        "Traitées : {$stats['processed']}",
-                        "Créées : {$stats['created']}",
-                        "Mises à jour : {$stats['updated']}",
-                        "Ignorées : {$stats['skipped']}",
-                        "Erreurs : {$stats['errors']}",
-                        $dryRun ? 'Mode simulation : aucune donnée enregistrée.' : null,
-                        $errorLink ? "Journal d’erreurs : {$errorLink}" : null,
-                    ])->filter()->implode("\n");
+                        $name = 'exports/products_' . now()->format('Ymd_His') . '.xlsx';
+                        $path = $disk->path($dir . '/' . basename($name));
 
-                    Notification::make()
-                        ->title('Import terminé')
-                        ->body($body)
-                        ->success()
-                        ->send();
-                }),
+                        $writer = SimpleExcelWriter::create($path)->addHeader([
+                            'name', 'generic_name', 'brand_name',
+                            'category_code', 'manufacturer_code', 'form_name',
+                            'strength', 'unit', 'packaging', 'atc_code',
+                            'price_ref', 'with_prescription', 'shelf_life_months',
+                            'indications', 'contraindications', 'side_effects',
+                            'storage_conditions', 'images', 'description', 'composition',
+                        ]);
 
-            // ---------- EXPORT CSV ----------
-            Actions\Action::make('exportCsv')
-                ->label('Exporter en CSV')
+                        $query->orderBy('id')->chunk(1000, function ($rows) use ($writer) {
+                            $writer->addRows($rows->map(function (ChemProduct $p) {
+                                return [
+                                    'name'               => $p->name,
+                                    'generic_name'       => $p->generic_name,
+                                    'brand_name'         => $p->brand_name,
+                                    'category_code'      => optional($p->category)->code,
+                                    'manufacturer_code'  => optional($p->manufacturer)->code,
+                                    'form_name'          => optional($p->form)->name,
+                                    'strength'           => $p->strength,
+                                    'unit'               => $p->unit,
+                                    'packaging'          => $p->packaging,
+                                    'atc_code'           => $p->atc_code,
+                                    'price_ref'          => $p->price_ref,
+                                    'with_prescription'  => $p->with_prescription ? 1 : 0,
+                                    'shelf_life_months'  => $p->shelf_life_months,
+                                    'indications'        => $p->indications,
+                                    'contraindications'  => $p->contraindications,
+                                    'side_effects'       => $p->side_effects,
+                                    'storage_conditions' => $p->storage_conditions,
+                                    'images'             => is_array($p->images) ? implode('; ', $p->images) : (string) $p->images,
+                                    'description'        => $p->description,
+                                    'composition'        => $p->composition,
+                                ];
+                            })->all());
+                        });
+
+                        $writer->close();
+
+                        return response()->download($path)->deleteFileAfterSend(true);
+                    }),
+            ])
+                ->label('Exporter')
                 ->icon('heroicon-o-arrow-down-tray')
-                ->color('secondary')
-                ->action(function () {
-                    $supplierId = Auth::user()?->supplier?->id;
-                    $query = ChemProduct::query()
-                        ->when($supplierId, fn ($q) => $q->where('supplier_id', $supplierId));
-
-                    $name = 'exports/products_' . now()->format('Ymd_His') . '.csv';
-                    $path = 'tmp/' . $name;
-
-                    $writer = SimpleExcelWriter::create(Storage::path($path))
-                        ->addHeader([
-                            'code', 'label', 'description', 'status',
-                            'category_code', 'manufacturer_code',
-                            'price', 'currency',
-                        ]);
-
-                    $query->orderBy('id')
-                        ->chunk(1000, function ($rows) use ($writer) {
-                            $writer->addRows($rows->map(function (ChemProduct $p) {
-                                return [
-                                    'code'               => $p->code,
-                                    'label'              => $p->label,
-                                    'description'        => $p->description,
-                                    'status'             => (int) $p->status,
-                                    'category_code'      => optional($p->category)->code,
-                                    'manufacturer_code'  => optional($p->manufacturer)->code,
-                                    'price'              => $p->price,
-                                    'currency'           => $p->currency,
-                                ];
-                            })->all());
-                        });
-
-                    $writer->close();
-
-                    return response()->download(Storage::path($path))->deleteFileAfterSend(true);
-                }),
-
-            // ---------- EXPORT XLSX ----------
-            Actions\Action::make('exportXlsx')
-                ->label('Exporter en XLSX')
-                ->icon('heroicon-o-document-arrow-down')
-                ->action(function () {
-                    $supplierId = Auth::user()?->supplier?->id;
-                    $query = ChemProduct::query()
-                        ->when($supplierId, fn ($q) => $q->where('supplier_id', $supplierId));
-
-                    $name = 'exports/products_' . now()->format('Ymd_His') . '.xlsx';
-                    $path = 'tmp/' . $name;
-
-                    $writer = SimpleExcelWriter::create(Storage::path($path))
-                        ->addHeader([
-                            'code', 'label', 'description', 'status',
-                            'category_code', 'manufacturer_code',
-                            'price', 'currency',
-                        ]);
-
-                    $query->orderBy('id')
-                        ->chunk(1000, function ($rows) use ($writer) {
-                            $writer->addRows($rows->map(function (ChemProduct $p) {
-                                return [
-                                    'code'               => $p->code,
-                                    'label'              => $p->label,
-                                    'description'        => $p->description,
-                                    'status'             => (int) $p->status,
-                                    'category_code'      => optional($p->category)->code,
-                                    'manufacturer_code'  => optional($p->manufacturer)->code,
-                                    'price'              => $p->price,
-                                    'currency'           => $p->currency,
-                                ];
-                            })->all());
-                        });
-
-                    $writer->close();
-
-                    return response()->download(Storage::path($path))->deleteFileAfterSend(true);
-                }),
+                ->color('danger')
+                ->button(),
         ];
+    }
+    /**
+     * Bouton "Modèle (en-têtes lisibles)" — CSV
+     * Génère un fichier CSV avec des en-têtes compréhensibles + une ligne d’exemple.
+     */
+    private function makeTemplateCsvAction(): Actions\Action
+    {
+        return Actions\Action::make('template_friendly_csv')
+            ->label('Modèle (en-têtes lisibles)')
+            ->icon('heroicon-o-document-arrow-down')
+            ->color('success') // joli bouton vert
+            ->outlined()       // style outline
+            ->action(function () {
+                // En-têtes lisibles (les users mapperont ces colonnes dans le modal d’import)
+                $headers = [
+                    'Nom commercial', 'Nom générique', 'Marque', 'Prix de référence (USD)',
+                    'Code catégorie (facultatif)', 'Nom du fabricant (facultatif)', 'Forme galénique (facultatif)',
+                    'Dosage', 'Unité', 'Conditionnement', 'Code ATC',
+                    'Avec ordonnance ?', 'Durée de conservation (mois)',
+                    'Indications', 'Contre-indications', 'Effets secondaires',
+                    'Conditions de stockage', 'Images (liste ou JSON)', 'Description', 'Composition',
+                ];
+
+                // Une ligne d’exemple pour guider
+                $sample = [[
+                    'Doliprane 500mg', 'Paracétamol', 'Doliprane', '2.5',
+                    'ANALG', 'SANOFI', 'Comprimé',
+                    '500', 'mg', 'Boîte de 16 cp', 'N02BE',
+                    '0', '24',
+                    'Douleur, fièvre', 'Insuffisance hépatique', 'Nausées, éruption',
+                    '15–25 °C', 'products/p1.jpg; products/p1b.jpg',
+                    'Antalgique', 'Paracétamol 500mg',
+                ]];
+
+                // Écrit dans storage/app/tmp/…
+                $disk = Storage::disk('local');
+                $dir  = 'tmp';
+                $disk->makeDirectory($dir);
+                $path = $disk->path("$dir/modele_produits_lisible.csv");
+
+                SimpleExcelWriter::create($path)
+                    ->addHeader($headers)
+                    ->addRows($sample)
+                    ->close();
+
+                return response()->download($path)->deleteFileAfterSend(true);
+            });
+    }
+
+    /**
+     * (Optionnel) Bouton "Modèle XLSX"
+     */
+    private function makeTemplateXlsxAction(): Actions\Action
+    {
+        return Actions\Action::make('template_friendly_xlsx')
+            ->label('Modèle XLSX')
+            ->icon('heroicon-o-document-arrow-down')
+            ->color('gray')
+            ->outlined()
+            ->action(function () {
+                $headers = [
+                    'Nom commercial', 'Nom générique', 'Marque', 'Prix de référence (USD)',
+                    'Code catégorie (facultatif)', 'Nom du fabricant (facultatif)', 'Forme galénique (facultatif)',
+                    'Dosage', 'Unité', 'Conditionnement', 'Code ATC',
+                    'Avec ordonnance ?', 'Durée de conservation (mois)',
+                    'Indications', 'Contre-indications', 'Effets secondaires',
+                    'Conditions de stockage', 'Images (liste ou JSON)', 'Description', 'Composition',
+                ];
+                $sample = [[
+                    'Doliprane 500mg', 'Paracétamol', 'Doliprane', '2.5',
+                    'ANALG', 'SANOFI', 'Comprimé',
+                    '500', 'mg', 'Boîte de 16 cp', 'N02BE',
+                    '0', '24',
+                    'Douleur, fièvre', 'Insuffisance hépatique', 'Nausées, éruption',
+                    '15–25 °C', 'products/p1.jpg; products/p1b.jpg',
+                    'Antalgique', 'Paracétamol 500mg',
+                ]];
+
+                $disk = Storage::disk('local');
+                $dir  = 'tmp';
+                $disk->makeDirectory($dir);
+                $path = $disk->path("$dir/modele_produits_lisible.xlsx");
+
+                SimpleExcelWriter::create($path)
+                    ->addHeader($headers)
+                    ->addRows($sample)
+                    ->close();
+
+                return response()->download($path)->deleteFileAfterSend(true);
+            });
     }
 
     // -----------------------
@@ -373,12 +296,14 @@ if ($missing->isNotEmpty()) {
 
     private function normalizeNumber($value): ?float
     {
-        if ($value === null || $value === '') return null;
+        if ($value === null || $value === '') {
+            return null;
+        }
 
         // tolère "1 234,56" ou "1,234.56"
         $s = Str::of((string) $value)->replace([' '], '');
         // si virgule comme décimal
-        if ($s->contains(',') && !$s->contains('.')) {
+        if ($s->contains(',') && ! $s->contains('.')) {
             $s = $s->replace(',', '.');
         }
         return is_numeric((string) $s) ? (float) $s : null;
@@ -387,7 +312,10 @@ if ($missing->isNotEmpty()) {
     private function normalizeCurrency($value): ?string
     {
         $cur = Str::upper(trim((string) $value));
-        if ($cur === '') return null;
+        if ($cur === '') {
+            return null;
+        }
+
         // Liste courte (adapte si besoin)
         $allowed = ['USD', 'CDF', 'EUR', 'XAF', 'XOF'];
         return in_array($cur, $allowed, true) ? $cur : 'USD';
