@@ -150,6 +150,7 @@ class ChemProductResource extends Resource
                                 ->label('Images')
                                 ->disk('s3') // Filament uploade direct vers S3
                                 ->directory('products')
+                                ->disk('s3') // Filament uploade direct vers S3
                                 ->visibility('private') // ->visibility('public')                               // ou enlève pour bucket privé
                                 ->multiple()
                                 ->image()
@@ -158,6 +159,7 @@ class ChemProductResource extends Resource
                                 ->helperText('Tu peux déposer plusieurs images ; elles sont stockées sur S3.')
                                 ->enableDownload()
                                 ->enableOpen()
+
                                 ->columnSpan(12),
                             Textarea::make('description')
                                 ->label('Description')
@@ -184,13 +186,17 @@ class ChemProductResource extends Resource
                 ImageColumn::make('images')
                     ->label('Images')
                 // renvoie un ARRAY d’URLs pour l’affichage empilé
-                    ->getStateUsing(fn($record) => $record->mediaUrls('images'))
-                    ->defaultImageUrl(asset('images/PROFI-TIK.jpg'))
                     ->circular()
                     ->stacked()
                     ->limit(2)
                     ->limitedRemainingText()
-                    ->height(44), // ou ->size(44)
+                     ->getStateUsing(fn($record) => $record->mediaUrls('products')) // URL finale
+                    ->size(64)
+                    ->square()
+                    ->defaultImageUrl(asset('assets/images/default.jpg'))  // 👈 évite l’icône cassée
+                    ->openUrlInNewTab()
+                    ->url(fn($record) => $record->mediaUrl('products', ttl: 5)), // clic = grande image
+                    // ->height(44), // ou ->size(44)
                               // ⚠️ ne PAS mettre ->url() ici, car on a plusieurs images
                               // ⚠️ inutile de ->disk() si tu fournis des URLs complètes
 
