@@ -116,8 +116,8 @@ class ProxyDoctorResource extends Resource
                     Repeater::make('career_history')
                         ->label('Parcours (repeater → stocké en JSON)')
                         ->schema([
-                            TextInput::make('position')->label('Poste')->maxLength(150)->required(),
-                            TextInput::make('institution')->label('Institution')->maxLength(150)->required(),
+                            TextInput::make('position')->label('Poste')->maxLength(150),
+                            TextInput::make('institution')->label('Institution')->maxLength(150),
                             DatePicker::make('start')->label('Début'),
                             DatePicker::make('end')->label('Fin'),
                         ])
