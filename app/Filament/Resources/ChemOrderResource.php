@@ -115,12 +115,13 @@ class ChemOrderResource extends Resource
                     FileUpload::make('prescription')
                         ->label("Ordonnances (images/PDF)")
                         ->multiple()
-                        ->directory('orders/prescriptions')
-                        ->disk('public')
-                        ->visibility('public')
+                        // ->directory('orders/prescriptions')
+                        ->disk('s3') // Filament uploade direct vers S3
+                            ->directory('prescriptions')
+                            ->visibility('private')
                         ->enableDownload()
                         ->enableOpen()
-                        ->imageEditor()
+                        ->imageEditor() 
                         ->helperText('Téléversez une ou plusieurs pièces (images/PDF). Stockées en JSON.'),
 
                     Textarea::make('note')
