@@ -15,11 +15,12 @@ use Filament\Forms\Components\Textarea;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Forms\Components\TextInput;
 use Filament\Tables\Columns\BadgeColumn;
+use Filament\Tables\Columns\ImageColumn;
 use App\Support\Filament\RestrictToOwner;
 use Filament\Forms\Components\FileUpload;
 use Filament\Tables\Filters\SelectFilter;
-use App\Filament\Resources\ChemOrderResource\Pages;
 use App\Support\Filament\RestrictToSupplier;
+use App\Filament\Resources\ChemOrderResource\Pages;
 
 class ChemOrderResource extends Resource
 {
@@ -138,6 +139,15 @@ class ChemOrderResource extends Resource
     {
         return $table
             ->columns([
+                ImageColumn::make('prescription') // colonne réelle = 'image'
+                    ->label('fichier')
+                    ->getStateUsing(fn($record) => $record->mediaUrl('image')) // URL finale
+                    ->size(64)
+                    ->square()
+                    ->defaultImageUrl(asset('assets/images/default.jpg'))  // 👈 évite l’icône cassée
+                    ->openUrlInNewTab()
+                    ->url(fn($record) => $record->mediaUrl('prescription', ttl: 5)), // clic = grande image
+
                 TextColumn::make('id')
                     ->label('ID')
                     ->sortable()
