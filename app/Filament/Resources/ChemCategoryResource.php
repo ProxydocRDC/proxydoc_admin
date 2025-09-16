@@ -109,7 +109,7 @@ class ChemCategoryResource extends Resource
                     ->getStateUsing(fn($record) => $record->mediaUrl('image')) // URL finale
                     ->size(64)
                     ->square()
-                    ->defaultImageUrl(asset('images/PROFI-TIK.jpg'))  // 👈 évite l’icône cassée
+                    ->defaultImageUrl(asset('assets/images/default.jpg'))  // 👈 évite l’icône cassée
                     ->openUrlInNewTab()
                     ->url(fn($record) => $record->mediaUrl('image', ttl: 5)), // clic = grande image
 
