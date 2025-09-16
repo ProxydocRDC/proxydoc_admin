@@ -1,24 +1,27 @@
 <?php
 namespace App\Filament\Resources;
 
-use App\Filament\Resources\ChemPharmacyResource\Pages;
-use App\Models\ChemPharmacy;
-use App\Support\Filament\RestrictToSupplier;
-use Filament\Forms\Components\FileUpload;
-use Filament\Forms\Components\Group;
-use Filament\Forms\Components\Hidden;
-use Filament\Forms\Components\Section;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Form;
-use Filament\Resources\Resource;
 use Filament\Tables;
-use Filament\Tables\Columns\ImageColumn;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Filters\SelectFilter;
+use Filament\Forms\Form;
 use Filament\Tables\Table;
+use Illuminate\Support\Str;
+use App\Models\ChemPharmacy;
+use Filament\Resources\Resource;
+use Filament\Forms\Components\Group;
 use Illuminate\Support\Facades\Auth;
+use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Textarea;
+use Filament\Tables\Columns\TextColumn;
+use Illuminate\Support\Facades\Storage;
+use Filament\Forms\Components\TextInput;
+use Filament\Tables\Columns\ImageColumn;
+use Filament\Forms\Components\FileUpload;
+use Filament\Tables\Filters\SelectFilter;
+use App\Support\Filament\RestrictToSupplier;
+use App\Filament\Resources\ChemPharmacyResource\Pages;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
 class ChemPharmacyResource extends Resource
 {
@@ -144,6 +147,7 @@ class ChemPharmacyResource extends Resource
                                         ->disk('s3')            // Filament uploade direct vers S3
                                         ->visibility('private') // retire si privé
                                         ->columnSpan(12),
+                               
 
                                 ]),
                         ])
@@ -163,7 +167,7 @@ class ChemPharmacyResource extends Resource
                     ->getStateUsing(fn($record) => $record->mediaUrl('logo')) // URL finale
                     ->size(64)
                     ->square()
-                    ->defaultImageUrl(asset('images/PROFI-TIK.jpg'))  // 👈 évite l’icône cassée
+                    ->defaultImageUrl(asset('images/PROFI-TIK.jpg')) // 👈 évite l’icône cassée
                     ->openUrlInNewTab()
                     ->url(fn($record) => $record->mediaUrl('logo', ttl: 5)), // clic = grande image,,
 

@@ -1,6 +1,7 @@
 <?php
 namespace App\Models;
 
+use Illuminate\Support\Str;
 use App\Models\ChemPharmacyProduct;
 use App\Models\Concerns\HasS3MediaUrls;
 use Illuminate\Database\Eloquent\Model;
@@ -46,4 +47,14 @@ class ChemPharmacy extends Model
     }
     public function orders()
     {return $this->hasMany(\App\Models\ChemOrder::class, 'pharmacy_id');}
+
+    function keyFromUrl(string $url): ?string {
+    $parts = parse_url($url);
+    $path  = isset($parts['path']) ? ltrim($parts['path'], '/') : null; // ex: "pharmacies/pharma5.jpeg" ou "proxydocfiles/pharmacies/..."
+    $bucket = config('filesystems.disks.s3.bucket');
+    if ($bucket && Str::startsWith($path, $bucket.'/')) {
+        $path = Str::after($path, $bucket.'/');
+    }
+    return $path ?: null;
+}
 }
