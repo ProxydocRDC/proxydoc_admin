@@ -1,30 +1,31 @@
 <?php
 namespace App\Filament\Resources;
 
-use App\Filament\Resources\ChemProductResource\Pages;
-use App\Imports\ChemProductsImport;
-use App\Models\ChemProduct;
-use Filament\Forms\Components\FileUpload;
-use Filament\Forms\Components\Group;
-use Filament\Forms\Components\Hidden;
-use Filament\Forms\Components\Section;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Toggle;
-use Filament\Forms\Form;
-use Filament\Notifications\Notification;
-use Filament\Resources\Resource;
 use Filament\Tables;
+use Filament\Forms\Form;
+use Filament\Tables\Table;
+use App\Models\ChemProduct;
+use Filament\Resources\Resource;
+use App\Imports\ChemProductsImport;
+use Filament\Forms\Components\Group;
+use Illuminate\Support\Facades\Auth;
+use Maatwebsite\Excel\Facades\Excel;
+use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Toggle;
+use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Textarea;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Columns\ViewColumn;
+use Illuminate\Support\Facades\Storage;
+use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Columns\ImageColumn;
+use Filament\Forms\Components\FileUpload;
 use Filament\Tables\Columns\SelectColumn;
-use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
-use Filament\Tables\Table;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
-use Maatwebsite\Excel\Facades\Excel;
+use App\Filament\Resources\ChemProductResource\Pages;
 use Filament\Notifications\Actions\Action as NotificationAction;
 
 class ChemProductResource extends Resource
@@ -184,23 +185,37 @@ class ChemProductResource extends Resource
         return $table
             ->columns([
                 // Première image si dispo
-                ImageColumn::make('images')
-                    ->label('Images')
-                // renvoie un ARRAY d’URLs pour l’affichage empilé
-                    ->circular()
-                    ->stacked()
-                    ->limit(2)
-                    ->limitedRemainingText()
-                    ->getStateUsing(fn($record) => $record->mediaUrls('products')) // URL finale
-                    ->size(64)
-                    ->square()
-                    ->defaultImageUrl(asset('assets/images/default.jpg')) // 👈 évite l’icône cassée
-                    ->openUrlInNewTab()
-                    ->url(fn($record) => $record->mediaUrl('products', ttl: 5)), // clic = grande image
-                                                                             // ->height(44), // ou ->size(44)
-                                                                             // ⚠️ ne PAS mettre ->url() ici, car on a plusieurs images
-                                                                             // ⚠️ inutile de ->disk() si tu fournis des URLs complètes
-
+                // ImageColumn::make('images')
+                //     ->label('Images')
+                // // renvoie un ARRAY d’URLs pour l’affichage empilé
+                //     ->circular()
+                //     ->stacked()
+                //     ->limit(2)
+                //     ->limitedRemainingText()
+                //     ->getStateUsing(fn($record) => $record->mediaUrls('products')) // URL finale
+                //     ->size(64)
+                //     ->square()
+                //     ->defaultImageUrl(asset('assets/images/default.jpg')) // 👈 évite l’icône cassée
+                //     ->openUrlInNewTab()
+                //     ->url(fn($record) => $record->mediaUrl('products', ttl: 5)), // clic = grande image
+                //                                                              // ->height(44), // ou ->size(44)
+                //                                                              // ⚠️ ne PAS mettre ->url() ici, car on a plusieurs images
+                //                                                              // ⚠️ inutile de ->disk() si tu fournis des URLs complètes
+                // ImageColumn::make('images')
+                //     ->label('Image')
+                //     ->getStateUsing(fn($record) => $record->firstSignedImageUrl(10))
+                //     ->size(64)
+                //     ->square()
+                //     ->stacked()
+                //     ->limit(2)
+                //     ->limitedRemainingText()
+                //     ->defaultImageUrl(asset('assets/images/default.jpg'))
+                //     ->openUrlInNewTab()
+                //     ->url(fn($record) => $record->firstSignedImageUrl(60)),
+                    ViewColumn::make('images')
+    ->label('Images')
+    ->getStateUsing(fn ($record) => $record->signedImageUrls(10)) // 3-4 miniatures
+    ->view('tables.columns.product-images-thumbs'),
                 TextColumn::make('name')
                     ->label('Nom')
                     ->searchable()

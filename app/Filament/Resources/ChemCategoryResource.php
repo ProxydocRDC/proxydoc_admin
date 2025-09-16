@@ -104,7 +104,7 @@ class ChemCategoryResource extends Resource
     {
         return $table
             ->columns([
-                ImageColumn::make('images') // colonne réelle = 'image'
+                ImageColumn::make('image') // colonne réelle = 'image'
                     ->label('Image')
                     ->getStateUsing(fn($record) => $record->mediaUrl('image')) // URL finale
                     ->size(64)
@@ -112,6 +112,9 @@ class ChemCategoryResource extends Resource
                     ->defaultImageUrl(asset('assets/images/default.jpg'))  // 👈 évite l’icône cassée
                     ->openUrlInNewTab()
                     ->url(fn($record) => $record->mediaUrl('image', ttl: 5)), // clic = grande image
+
+
+
 
 
                 TextColumn::make('name')
