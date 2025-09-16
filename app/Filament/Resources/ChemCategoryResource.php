@@ -104,7 +104,7 @@ class ChemCategoryResource extends Resource
     {
         return $table
             ->columns([
-                ImageColumn::make('image') // colonne réelle = 'image'
+                ImageColumn::make('images') // colonne réelle = 'image'
                     ->label('Image')
                     ->getStateUsing(fn($record) => $record->mediaUrl('image')) // URL finale
                     ->size(64)
