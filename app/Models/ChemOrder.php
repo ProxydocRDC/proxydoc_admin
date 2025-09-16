@@ -4,11 +4,13 @@ namespace App\Models;
 use App\Models\ChemShipment;
 use App\Models\ChemOrderItem;
 use App\Models\ChemOrderPayment;
+use App\Models\Concerns\HasS3MediaUrls;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
 
 class ChemOrder extends Model
 {
+     use HasS3MediaUrls;
     protected $guarded    = [];
     protected $attributes = [
         'status' => 1, // actif par défaut
@@ -97,11 +99,11 @@ public function customer()
     }
      public function getImageUrlAttribute(): ?string
     {
-        return $this->mediaUrl('image');       // <img src="{{ $category->image_url }}">
+        return $this->mediaUrl('prescription');       // <img src="{{ $category->image_url }}">
     }
 
     public function getImagesUrlsAttribute(): array
     {
-        return $this->mediaUrls('images');     // foreach ($model->images_urls as $url) ...
+        return $this->mediaUrls('prescriptions');     // foreach ($model->images_urls as $url) ...
     }
 }
