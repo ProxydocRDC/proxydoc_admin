@@ -37,3 +37,9 @@ Route::get('/exports/templates/products.csv', function () {
         'Content-Disposition' => 'attachment; filename="template_products.csv"',
     ]);
 })->name('products.template');
+// routes/web.php
+Route::middleware('auth')->get('/imports/reports/{file}', function (string $file) {
+    $path = storage_path("app/imports/reports/{$file}");
+    abort_unless(is_file($path), 404);
+    return response()->download($path, $file);
+})->name('imports.report');

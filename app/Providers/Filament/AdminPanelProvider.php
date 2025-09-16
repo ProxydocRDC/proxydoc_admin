@@ -67,7 +67,7 @@ class AdminPanelProvider extends PanelProvider
             ->unsavedChangesAlerts()
             ->brandName('Dashboard PROXYDOC')
             // ->viteTheme('resources/css/filament/admin/theme.css')
-            ->brandLogo(asset('assets/images/PROFI-TIK.jpg'))
+            ->brandLogo(asset('assets/images/default.jpg'))
             ->brandLogoHeight(fn() => Auth::check() ? '3rem' : '5rem')
             ->favicon(asset('assets/images/log.png'))
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
@@ -112,7 +112,7 @@ class AdminPanelProvider extends PanelProvider
             ->plugins([
                 FilamentShieldPlugin::make(),
                  EasyFooterPlugin::make()->withFooterPosition('footer')->withLoadTime('Cette page a été chargée dans')
-                ->withLogo(asset('assets/images/PROFI-TIK.jpg'), 'https://proxydoc.org')
+                ->withLogo(asset('assets/images/default.jpg'), 'https://proxydoc.org')
                 ->withLinks([
                     ['title' => 'A propos', 'url' => 'https://proxydoc.org'],
                     ['title' => 'Privacy Policy', 'url' => 'https://proxydoc.org/privacy-policy']
