@@ -95,4 +95,13 @@ public function customer()
             'supplier_id'  // foreign key on pharmacies
         );
     }
+     public function getImageUrlAttribute(): ?string
+    {
+        return $this->mediaUrl('image');       // <img src="{{ $category->image_url }}">
+    }
+
+    public function getImagesUrlsAttribute(): array
+    {
+        return $this->mediaUrls('images');     // foreach ($model->images_urls as $url) ...
+    }
 }
