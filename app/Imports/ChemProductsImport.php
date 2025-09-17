@@ -124,7 +124,7 @@ class ChemProductsImport implements OnEachRow, WithHeadingRow, WithValidation, S
             'category_id'     => $categoryId,
             'manufacturer_id' => $manufacturerId,
             'form_id'         => $formId,
-            'images'          => ["products/default.jpg"],
+            // 'images'          => ["products/default.jpg"],
             'created_by'      => Auth::id(),
 
             // Champs optionnels (ne plantent pas s’ils sont manquants)
