@@ -5,6 +5,7 @@ use Filament\Tables;
 use Filament\Forms\Form;
 use Filament\Tables\Table;
 use App\Models\ChemProduct;
+use Illuminate\Support\Str;
 use Filament\Resources\Resource;
 use App\Imports\ChemProductsImport;
 use Filament\Forms\Components\Group;
@@ -26,6 +27,7 @@ use Filament\Forms\Components\FileUpload;
 use Filament\Tables\Columns\SelectColumn;
 use Filament\Tables\Filters\SelectFilter;
 use App\Filament\Resources\ChemProductResource\Pages;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Filament\Notifications\Actions\Action as NotificationAction;
 
 class ChemProductResource extends Resource
@@ -148,21 +150,75 @@ class ChemProductResource extends Resource
                         ])->columns(12),
 
                         Section::make('Médias & descriptions')->schema([
-                            FileUpload::make('images')
-                                ->label('Images')
-                                ->disk('s3') // Filament uploade direct vers S3
-                                ->directory('products')
-                                ->disk('s3')            // Filament uploade direct vers S3
-                                ->visibility('private') // ->visibility('public')                               // ou enlève pour bucket privé
-                                ->multiple()
-                                ->image()
-                                ->imageEditor() // optionnel
-                                ->reorderable()
-                                ->helperText('Tu peux déposer plusieurs images ; elles sont stockées sur S3.')
-                                ->enableDownload()
-                                ->enableOpen()
+                            // FileUpload::make('images')
+                            //     ->label('Images')
+                            //     ->disk('s3') // Filament uploade direct vers S3
+                            //     ->directory('products')
+                            //     ->disk('s3')            // Filament uploade direct vers S3
+                            //     ->visibility('private') // ->visibility('public')                               // ou enlève pour bucket privé
+                            //     ->multiple()
+                            //     ->image()
+                            //     ->imageEditor() // optionnel
+                            //     ->reorderable()
+                            //     ->helperText('Tu peux déposer plusieurs images ; elles sont stockées sur S3.')
+                            //     ->enableDownload()
+                            //     ->enableOpen()
 
-                                ->columnSpan(12),
+                            //     ->columnSpan(12),
+
+
+FileUpload::make('images')
+    ->label('Images')
+    ->disk('s3')                 // upload direct S3
+    ->directory('products')      // préfixe
+    ->visibility('private')      // bucket privé => URLs signées
+    ->multiple()
+    ->image()
+    ->imageEditor()
+    ->reorderable()
+    ->preserveFilenames(false)
+    ->getUploadedFileNameForStorageUsing(
+        fn (TemporaryUploadedFile $file) =>
+            'products/' . Str::ulid() . '.' . $file->getClientOriginalExtension()
+    )
+
+    // ---- IMPORTANT : compat “anciens enregistrements” (URL -> clé S3)
+    ->formatStateUsing(function ($state) {
+        // $state peut être: array de chaînes, chaîne, ou null
+        $arr = is_array($state) ? $state : (empty($state) ? [] : [$state]);
+
+        $toKey = function ($value) {
+            if (!is_string($value) || $value === '') return null;
+
+            // Déjà une clé ? (pas d'URL complète)
+            if (!preg_match('#^https?://#i', $value)) {
+                $key = ltrim($value, '/');
+            } else {
+                // URL complète -> extraire le path
+                $parts = parse_url($value);
+                $key   = ltrim($parts['path'] ?? '', '/');          // "bucket/products/..."
+                $bucket = config('filesystems.disks.s3.bucket');
+                if ($bucket && str_starts_with($key, $bucket . '/')) {
+                    $key = substr($key, strlen($bucket) + 1);       // "products/..."
+                }
+            }
+
+            return $key ?: null;
+        };
+
+        $keys = array_values(array_filter(array_map($toKey, $arr)));
+        return $keys; // Filament utilisera ces clés pour prévisualiser (URL signées)
+    })
+
+    // ---- À l’enregistrement, on stocke UNIQUEMENT les clés S3
+    ->dehydrateStateUsing(fn ($state) => array_values($state ?? []))
+
+    // Boutons v3
+    ->openable()
+    ->downloadable()
+
+    ->helperText('Tu peux déposer plusieurs images ; elles sont stockées sur S3.')
+    ->columnSpan(12),
                             Textarea::make('description')
                                 ->label('Description')
                                 ->helperText('Description générale du produit.')

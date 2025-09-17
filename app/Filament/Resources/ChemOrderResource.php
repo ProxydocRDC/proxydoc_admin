@@ -1,35 +1,35 @@
 <?php
 namespace App\Filament\Resources;
 
-use App\Models\User;
-use App\Support\Sms;
-use Filament\Tables;
-use Filament\Forms\Form;
+use App\Filament\Resources\ChemOrderResource\Pages;
 use App\Models\ChemOrder;
-use Filament\Tables\Table;
-use Illuminate\Support\Str;
 use App\Models\ChemShipment;
-use Filament\Resources\Resource;
-use Illuminate\Support\Facades\DB;
-use Filament\Tables\Actions\Action;
+use App\Models\User;
+use App\Support\CourierHelper;
+use App\Support\Sms;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Group;
-use Illuminate\Support\Facades\Auth;
 use Filament\Forms\Components\Hidden;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Toggle;
 use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
-use Filament\Tables\Columns\TextColumn;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Storage;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
+use Filament\Forms\Form;
 use Filament\Notifications\Notification;
+use Filament\Resources\Resource;
+use Filament\Tables;
+use Filament\Tables\Actions\Action;
 use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Columns\ImageColumn;
-use Filament\Forms\Components\FileUpload;
+use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
-use Illuminate\Database\Eloquent\Builder;
-use App\Filament\Resources\ChemOrderResource\Pages;
+use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class ChemOrderResource extends Resource
 {
@@ -271,7 +271,7 @@ class ChemOrderResource extends Resource
                             Notification::make()->title('Déjà validée')->warning()->send();
                             return;
                         }
-                        if (!$record->prescription) {
+                        if (! $record->prescription) {
                             Notification::make()->title('Aucune prescription trouvée!')->danger()->send();
                             return;
                         }
@@ -340,32 +340,32 @@ class ChemOrderResource extends Resource
                         }
                     })
                     ->form([
-                                                    // ⚠️ On n'utilise PAS ->relationship() pour éviter d'écrire sur chem_orders
-                                                    // Select::make('assignee_id')
-                                                    //     ->label('Livreur')
-                                                    //     ->relationship('deliveryPerson', 'firstname')
-                                                    //                                                              // si tu as une relation: ->relationship('driver', 'name')
-                                                    //                                                              // ->options(fn() => User::query()->pluck('fullname', 'id')->toArray())
-                                                    //     ->getOptionLabelFromRecordUsing(fn(User $u) => $u->fullname) // <-- utilise l'accessor
-                                                    //     ->searchable(['firstname', 'lastname', 'phone', 'email'])
-                                                    //     ->preload()
-                                                    //     ->dehydrated(true) // <-- clé: n’écrit JAMAIS sur le record
-                                                    //     ->required(),
-                        
-                          Select::make('assignee_id')
-    ->label('Livreur')
-    ->dehydrated(false) // ne pas écrire sur chem_orders
-    ->searchable()
-    ->preload()
-    ->getSearchResultsUsing(fn (string $search) =>
-        CourierHelper::freeCourierOptions($search, now())
-    )
-    ->getOptionLabelUsing(fn ($value) =>
-        optional(\App\Models\User::find($value))->fullname
-    )
-    ->noSearchResultsMessage('Aucun livreur disponible')
-    ->required(),
-                           
+                        // ⚠️ On n'utilise PAS ->relationship() pour éviter d'écrire sur chem_orders
+                        // Select::make('assignee_id')
+                        //     ->label('Livreur')
+                        //     ->relationship('deliveryPerson', 'firstname')
+                        //                                                              // si tu as une relation: ->relationship('driver', 'name')
+                        //                                                              // ->options(fn() => User::query()->pluck('fullname', 'id')->toArray())
+                        //     ->getOptionLabelFromRecordUsing(fn(User $u) => $u->fullname) // <-- utilise l'accessor
+                        //     ->searchable(['firstname', 'lastname', 'phone', 'email'])
+                        //     ->preload()
+                        //     ->dehydrated(true) // <-- clé: n’écrit JAMAIS sur le record
+                        //     ->required(),
+
+                        Select::make('assignee_id')
+                            ->label('Livreur')
+                            ->dehydrated(false) // ne pas écrire sur chem_orders
+                            ->searchable()
+                            ->preload()
+                            ->getSearchResultsUsing(fn(string $search) =>
+                                CourierHelper::freeCourierOptions($search, now())
+                            )
+                            ->getOptionLabelUsing(fn($value) =>
+                                optional(\App\Models\User::find($value))->fullname
+                            )
+                            ->noSearchResultsMessage('Aucun livreur disponible')
+                            ->required(),
+
                         TextInput::make('estimated_delivery')
                             ->label('Temps estimé (minutes)')
                             ->numeric()->minValue(1)->maxValue(1440),
