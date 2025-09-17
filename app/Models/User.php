@@ -3,6 +3,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Models\MainTenant;
+use App\Models\MainUserAddress;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Models\Contracts\HasName;
 use Filament\Panel;
@@ -15,7 +16,7 @@ class User extends Authenticatable implements FilamentUser, HasName
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable, HasRoles;
-  public const ROLE_DOCTOR  = 2;
+    public const ROLE_DOCTOR  = 2;
     public const ROLE_PATIENT = 5;
     /**
      * The attributes that are mass assignable.
@@ -99,6 +100,10 @@ class User extends Authenticatable implements FilamentUser, HasName
     {
         return $this->hasMany(ProxyPatient::class, 'user_id');
     }
+    public function customerAdresse()
+    {
+        return $this->hasMany(MainUserAddress::class, 'user_id');
+    }
     public function getAuthPassword()
     {
         $hash = $this->attributes['password'] ?? '';
@@ -122,7 +127,10 @@ class User extends Authenticatable implements FilamentUser, HasName
     {
         return $this->hasOne(\App\Models\ProxyDoctor::class, 'user_id');
     }
-
+    public function shipments()
+    {
+        return $this->hasMany(\App\Models\ChemShipment::class, 'delivery_person_id');
+    }
     public function getFullnameAttribute(): string
     {
         return trim(($this->firstname ?? '') . ' ' . ($this->lastname ?? ''));

@@ -1,16 +1,17 @@
 <?php
 namespace App\Models;
 
-use App\Models\ChemShipment;
 use App\Models\ChemOrderItem;
 use App\Models\ChemOrderPayment;
+use App\Models\ChemShipment;
 use App\Models\Concerns\HasS3MediaUrls;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 class ChemOrder extends Model
 {
-     use HasS3MediaUrls;
+    use HasS3MediaUrls;
     protected $guarded    = [];
     protected $attributes = [
         'status' => 1, // actif par défaut
@@ -35,22 +36,22 @@ class ChemOrder extends Model
     // {
     //     return $this->belongsTo(\App\Models\ChemPharmacy::class, 'pharmacy_id');
     // }
-public function pharmacie()
-{
-    return $this->belongsTo(\App\Models\ChemPharmacy::class, 'pharmacy_id');
-}
+    public function pharmacie()
+    {
+        return $this->belongsTo(\App\Models\ChemPharmacy::class, 'pharmacy_id');
+    }
 
 // alias pratique pour Filament (utilise le même FK)
-public function pharmacy()
-{
-    return $this->pharmacie();
-}
+    public function pharmacy()
+    {
+        return $this->pharmacie();
+    }
 
 // si besoin pour l'affichage "client"
-public function customer()
-{
-    return $this->belongsTo(\App\Models\User::class, 'customer_id');
-}
+    public function customer()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'customer_id');
+    }
 
     // (facultatif) garde un alias si tu veux :
     // public function pharmacie()
@@ -61,7 +62,7 @@ public function customer()
     /** Scope pour filtrer par fournisseur */
     public function scopeForSupplier(Builder $q, int $supplierId): Builder
     {
-        return $q->whereHas('pharmacy', fn ($p) => $p->where('supplier_id', $supplierId));
+        return $q->whereHas('pharmacy', fn($p) => $p->where('supplier_id', $supplierId));
     }
 
     public function payments()
@@ -97,13 +98,23 @@ public function customer()
             'supplier_id'  // foreign key on pharmacies
         );
     }
-     public function getImageUrlAttribute(): ?string
+    public function getImageUrlAttribute(): ?string
     {
-        return $this->mediaUrl('prescription');       // <img src="{{ $category->image_url }}">
+        return $this->mediaUrl('prescription'); // <img src="{{ $category->image_url }}">
     }
 
     public function getImagesUrlsAttribute(): array
     {
-        return $this->mediaUrls('prescriptions');     // foreach ($model->images_urls as $url) ...
+        return $this->mediaUrls('prescriptions'); // foreach ($model->images_urls as $url) ...
     }
+    public function latestShipment()
+{
+    return $this->hasOne(\App\Models\ChemShipment::class, 'order_id')
+                ->latest('id');
+}
+public function deliveryPerson()
+{
+    return $this->belongsTo(\App\Models\User::class, 'delivery_person_id'); // sur ChemShipment
+}
+   
 }
