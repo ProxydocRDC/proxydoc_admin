@@ -1,35 +1,36 @@
 <?php
 namespace App\Filament\Resources;
 
-use App\Filament\Resources\ChemOrderResource\Pages;
-use App\Models\ChemOrder;
-use App\Models\ChemShipment;
 use App\Models\User;
-use App\Support\CourierHelper;
 use App\Support\Sms;
-use Filament\Forms\Components\FileUpload;
-use Filament\Forms\Components\Group;
-use Filament\Forms\Components\Hidden;
-use Filament\Forms\Components\Section;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Toggle;
-use Filament\Forms\Form;
-use Filament\Notifications\Notification;
-use Filament\Resources\Resource;
 use Filament\Tables;
+use Filament\Forms\Form;
+use App\Models\ChemOrder;
+use Filament\Tables\Table;
+use Illuminate\Support\Str;
+use App\Models\ChemShipment;
+use App\Support\CourierHelper;
+use Filament\Resources\Resource;
+use Illuminate\Support\Facades\DB;
 use Filament\Tables\Actions\Action;
+use Filament\Forms\Components\Group;
+use Illuminate\Support\Facades\Auth;
+use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Toggle;
+use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Textarea;
+use Filament\Tables\Columns\TextColumn;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
+use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
+use Filament\Tables\Actions\ActionGroup;
 use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Columns\ImageColumn;
-use Filament\Tables\Columns\TextColumn;
+use Filament\Forms\Components\FileUpload;
 use Filament\Tables\Filters\SelectFilter;
-use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
+use App\Filament\Resources\ChemOrderResource\Pages;
 
 class ChemOrderResource extends Resource
 {
@@ -254,6 +255,7 @@ class ChemOrderResource extends Resource
                     ->options([1 => 'Actif', 0 => 'Inactif']),
             ])
             ->actions([
+                  ActionGroup::make([
                 Tables\Actions\EditAction::make()->label('Modifier'),
                 Tables\Actions\DeleteAction::make()->label('Supprimer'),
 
@@ -474,6 +476,7 @@ class ChemOrderResource extends Resource
                     }),
 
                 // … garde tes actions "Edit", "View", etc. si tu les as
+            ])
             ])
             ->bulkActions([
                 Tables\Actions\DeleteBulkAction::make()->label('Supprimer la sélection'),
