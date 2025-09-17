@@ -228,6 +228,11 @@ class ChemProductResource extends Resource
     {
         return $table
             ->columns([
+               TextColumn::make('index')
+                ->label('#')
+                ->rowIndex()          // ← numérotation 1,2,3… (garde le bon offset par page)
+                ->alignCenter()
+                ->sortable(false),    // optionnel : pas besoin de trier sur l’index
                 ImageColumn::make('images')
                     ->label('Images')
                     ->getStateUsing(fn($record) => $record->signedImageUrls(10)) // ← ARRAY d’URLs signées
