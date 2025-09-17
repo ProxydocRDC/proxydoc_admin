@@ -116,5 +116,55 @@ public function deliveryPerson()
 {
     return $this->belongsTo(\App\Models\User::class, 'delivery_person_id'); // sur ChemShipment
 }
-   
+
+
+
+   /** URL -> clé S3 ; ou renvoie la clé telle quelle */
+    protected function s3KeyFromUrlOrKey(?string $value): ?string
+    {
+        if (!is_string($value) || $value === '') return null;
+
+        // déjà une clé ?
+        if (!preg_match('#^https?://#i', $value)) {
+            $key = ltrim($value, '/');
+        } else {
+            $parts = parse_url($value);
+            $key   = ltrim($parts['path'] ?? '', '/'); // "bucket/dir/file" ou "dir/file"
+            $bucket = config('filesystems.disks.s3.bucket');
+            if ($bucket && str_starts_with($key, $bucket . '/')) {
+                $key = substr($key, strlen($bucket) + 1); // "dir/file"
+            }
+        }
+        return $key ?: null;
+    }
+
+    /** Retourne les clés S3 (array) à partir de la colonne images (urls ou clés) */
+    public function imageKeys(): array
+    {
+        $raw = $this->images ?? [];
+        if (!is_array($raw)) $raw = $raw ? [$raw] : [];
+        $keys = [];
+        foreach ($raw as $v) {
+            $k = $this->s3KeyFromUrlOrKey(is_string($v) ? $v : null);
+            if ($k) $keys[] = $k;
+        }
+        return $keys;
+    }
+
+    /** URLs signées (array) pour l’affichage */
+    public function signedImageUrls(int $ttlMinutes = 10): array
+    {
+        $exp = now()->addMinutes($ttlMinutes);
+        return array_values(array_filter(array_map(
+            fn ($k) => Storage::disk('s3')->temporaryUrl($k, $exp),
+            $this->imageKeys()
+        )));
+    }
+
+    /** Première URL signée (ou null) */
+    public function firstSignedImageUrl(int $ttlMinutes = 10): ?string
+    {
+        $all = $this->signedImageUrls($ttlMinutes);
+        return $all[0] ?? null;
+    }
 }
