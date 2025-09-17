@@ -261,7 +261,7 @@ public function onRow(Row $row): void
             'form_name'         => ['nullable', 'string', 'max:255'],
             'sku'               => ['nullable', 'string', 'max:255'],
             'barcode'           => ['nullable', 'string', 'max:255'],
-            'strength'          => ['nullable', 'string', 'max:255'],
+            'strength'          => ['nullable', $num ],
             'dosage'            => ['nullable', 'string', 'max:255'],
             'unit'              => ['nullable', 'string', 'max:50'],
             'stock'             => ['nullable', $num],
