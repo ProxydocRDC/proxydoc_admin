@@ -28,6 +28,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Maatwebsite\Excel\Facades\Excel;
+use Filament\Tables\Columns\ImageColumn;
 
 class ChemProductResource extends Resource
 {
@@ -157,6 +158,7 @@ class ChemProductResource extends Resource
                                 ->visibility('private') // ->visibility('public')                               // ou enlève pour bucket privé
                                 ->multiple()
                                 ->image()
+                                ->getStateUsing(fn($record) => $record->mediaUrls('products'))
                                 ->imageEditor() // optionnel
                                 ->reorderable()
                                 ->helperText('Tu peux déposer plusieurs images ; elles sont stockées sur S3.')

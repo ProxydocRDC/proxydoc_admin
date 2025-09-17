@@ -354,7 +354,7 @@ class ChemOrderResource extends Resource
 
                         Select::make('assignee_id')
                             ->label('Livreur')
-                            ->dehydrated(false) // ne pas écrire sur chem_orders
+                            ->dehydrated(true) // ne pas écrire sur chem_orders
                             ->searchable()
                             ->preload()
                             ->getSearchResultsUsing(fn(string $search) =>
