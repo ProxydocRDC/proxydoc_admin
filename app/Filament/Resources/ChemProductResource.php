@@ -1,35 +1,36 @@
 <?php
 namespace App\Filament\Resources;
 
-use App\Filament\Resources\ChemProductResource\Pages;
-use App\Imports\ChemProductsImport;
-use App\Models\ChemProduct;
-use Filament\Forms\Components\FileUpload;
-use Filament\Forms\Components\Group;
-use Filament\Forms\Components\Hidden;
-use Filament\Forms\Components\Section;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Toggle;
-use Filament\Forms\Form;
-use Filament\Notifications\Actions\Action as NotificationAction;
-use Filament\Notifications\Notification;
-use Filament\Resources\Resource;
 use Filament\Tables;
+use Filament\Forms\Form;
+use Filament\Tables\Table;
+use App\Models\ChemProduct;
+use Illuminate\Support\Str;
+use Filament\Resources\Resource;
+use App\Imports\ChemProductsImport;
 use Filament\Tables\Actions\Action;
+use Filament\Forms\Components\Group;
+use Illuminate\Support\Facades\Auth;
+use Maatwebsite\Excel\Facades\Excel;
+use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Toggle;
+use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Textarea;
+use Filament\Tables\Actions\BulkAction;
+use Filament\Tables\Columns\TextColumn;
+use Illuminate\Support\Facades\Storage;
+use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 use Filament\Tables\Actions\ActionGroup;
 use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Columns\ImageColumn;
+use Filament\Forms\Components\FileUpload;
 use Filament\Tables\Columns\SelectColumn;
-use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
-use Filament\Tables\Table;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
+use App\Filament\Resources\ChemProductResource\Pages;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
-use Maatwebsite\Excel\Facades\Excel;
+use Filament\Notifications\Actions\Action as NotificationAction;
 
 class ChemProductResource extends Resource
 {
@@ -529,6 +530,58 @@ Optionnels : category_code, manufacturer_name, form_name, sku, barcode, strength
                 }),
         ])
             ->bulkActions([
+                // … tes autres bulk actions
+    BulkAction::make('clearImagesBulk')
+        ->label('Vider images (en masse)')
+        ->icon('heroicon-m-photo')
+        ->color('warning')
+        ->deselectRecordsAfterCompletion()
+        ->form([
+            \Filament\Forms\Components\Toggle::make('delete_s3')
+                ->label('Supprimer aussi les fichiers S3')
+                ->default(false),
+        ])
+        ->action(function (array $data, $records) {
+            $disk = Storage::disk('s3');
+            $totalRecords = 0;
+            $totalFilesDeleted = 0;
+
+            foreach ($records as $record) {
+                $totalRecords++;
+                $keys = is_array($record->images) ? $record->images : [];
+
+                if (!empty($data['delete_s3']) && $keys) {
+                    foreach ($keys as $k) {
+                        $key = preg_match('#^https?://#i', (string) $k)
+                            ? ltrim(parse_url($k, PHP_URL_PATH) ?? '', '/')
+                            : ltrim((string) $k, '/');
+
+                        $bucket = config('filesystems.disks.s3.bucket');
+                        if ($bucket && Str::startsWith($key, $bucket . '/')) {
+                            $key = substr($key, strlen($bucket) + 1);
+                        }
+
+                        try {
+                            if ($key) {
+                                $disk->delete($key);
+                                $totalFilesDeleted++;
+                            }
+                        } catch (\Throwable $e) {
+                            // on ignore, on continue sur les autres
+                        }
+                    }
+                }
+
+                $record->images = [];
+                $record->save();
+            }
+
+            Notification::make()
+                ->title('Images vidées')
+                ->body("Produits traités: {$totalRecords}. Fichiers S3 supprimés: {$totalFilesDeleted}.")
+                ->success()
+                ->send();
+        }),
                 Tables\Actions\DeleteBulkAction::make()->label('Supprimer la sélection'),
             ]);
     }
