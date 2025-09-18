@@ -35,10 +35,19 @@ class ProxyServiceResource extends Resource
                     //     ->default(true)->required(),
 
                     TextInput::make('code')->label('Code')
-                        ->required()->maxLength(50)->columnSpan(6),
+                        ->required()->maxLength(50)->columnSpan(4),
 
                     TextInput::make('label')->label('Libellé')
-                        ->required()->maxLength(100)->columnSpan(6),
+                        ->required()->maxLength(100)->columnSpan(4),
+                    TextInput::make('specialty_level')->label('Niveau de spécialité')
+                        ->required()->maxLength(100)->columnSpan(4),
+                    TextInput::make('chat_price')->label('Prix chat')->numeric()
+                    ->numeric()
+                        ->required()->maxLength(100)->columnSpan(4),
+                    TextInput::make('audio_price')->label('Prix audio')->numeric()
+                        ->required()->maxLength(100)->columnSpan(4),
+                    TextInput::make('video_price')->label('Prix vidéo')->numeric()
+                        ->required()->maxLength(100)->columnSpan(4),
 
                     Textarea::make('description')->label('Description')->rows(3)
                     ->columnSpan(6),
@@ -74,7 +83,7 @@ class ProxyServiceResource extends Resource
                     ->getStateUsing(fn($record) => $record->mediaUrl('image')) // URL finale
                     ->size(64)
                     ->square()
-                    ->defaultImageUrl(asset('images/PROFI-TIK.jpg'))  // 👈 évite l’icône cassée
+                    ->defaultImageUrl(asset('assets/images/default.jpg'))  // 👈 évite l’icône cassée
                     ->openUrlInNewTab()
                     ->url(fn($record) => $record->mediaUrl('image', ttl: 5)), // clic = grande image
 
