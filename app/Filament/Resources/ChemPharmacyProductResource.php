@@ -140,16 +140,26 @@ public static function getEloquentQuery(): Builder
     public static function table(Table $table): Table
     {
         return $table->columns([
+            // ImageColumn::make('image')
+            //     ->label('Image')
+            //     ->square()
+            //     ->size(50)
+            //     ->getStateUsing(fn($record) => $record->mediaUrl('image')) // URL finale
+            //     ->size(64)
+            //     ->square()
+            //     ->defaultImageUrl(asset('assets/images/default.jpg')) // 👈 évite l’icône cassée
+            //     ->openUrlInNewTab()
+            //     ->url(fn($record) => $record->mediaUrl('image', ttl: 5)), // clic = grande image,
             ImageColumn::make('image')
-                ->label('Image')
-                ->square()
-                ->size(50)
-                ->getStateUsing(fn($record) => $record->mediaUrl('image')) // URL finale
-                ->size(64)
-                ->square()
-                ->defaultImageUrl(asset('images/PROFI-TIK.jpg')) // 👈 évite l’icône cassée
-                ->openUrlInNewTab()
-                ->url(fn($record) => $record->mediaUrl('image', ttl: 5)), // clic = grande image,
+    ->label('Image')
+    ->square()
+    ->size(64)
+    // miniature signée (image propre si présente, sinon image du produit)
+    ->getStateUsing(fn ($record) => $record->displayImageUrl(10))
+    ->defaultImageUrl(asset('assets/images/default.jpg'))
+    ->openUrlInNewTab()
+    // clic : version avec TTL plus long
+    ->url(fn ($record) => $record->displayImageUrl(60)),
 
             TextColumn::make('pharmacy.name')
                 ->label('Pharmacie')
