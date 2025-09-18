@@ -7,6 +7,7 @@ use Filament\Tables;
 use App\Models\ProxyService;
 use Filament\Resources\Resource;
 use Illuminate\Support\Facades\Auth;
+use Filament\Forms\Components\Select;
 use Filament\Tables\Columns\ImageColumn;
 use App\Filament\Resources\ProxyServiceResource\Pages;
 use Filament\Tables\Columns\{TextColumn, ToggleColumn};
@@ -39,8 +40,18 @@ class ProxyServiceResource extends Resource
 
                     TextInput::make('label')->label('Libellé')
                         ->required()->maxLength(100)->columnSpan(4),
-                    TextInput::make('specialty_level')->label('Niveau de spécialité')
-                        ->required()->maxLength(100)->columnSpan(4),
+                   Select::make('specialty_level')
+    ->label('Niveau de spécialité')
+    ->options([
+        0 => 'Spécialité 0',
+        1 => 'Spécialité 1',
+        2 => 'Spécialité 2',
+        3 => 'Spécialité 3',
+        ])->default(0)          // décommente si tu veux 0 par défaut
+    ->placeholder('— Sélectionner —')
+    ->required()          // oblige un choix
+    ->native(false)       // rendu “filament” (pas le select natif)
+    ->columnSpan(4),
                     TextInput::make('chat_price')->label('Prix chat')->numeric()
                     ->numeric()
                         ->required()->maxLength(100)->columnSpan(4),
@@ -87,6 +98,10 @@ class ProxyServiceResource extends Resource
                     ->openUrlInNewTab()
                     ->url(fn($record) => $record->mediaUrl('image', ttl: 5)), // clic = grande image
 
+                TextColumn::make('specialty_level')->label('Niveau de spécialité')->sortable()->searchable(),
+                TextColumn::make('chat_price')->label('Prix chat')->sortable()->searchable(),
+                TextColumn::make('audio_price')->label('Prix audio')->sortable()->searchable(),
+                TextColumn::make('video_price')->label('Prix vidéo')->sortable()->searchable(),
                 TextColumn::make('code')->label('Code')->sortable()->searchable(),
                 TextColumn::make('label')->label('Libellé')->sortable()->searchable(),
                 TextColumn::make('created_at')->dateTime('Y-m-d H:i')->label('Créé')->sortable(),
