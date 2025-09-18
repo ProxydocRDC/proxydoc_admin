@@ -355,7 +355,7 @@ class ChemHospitalResource extends Resource
                 ImageColumn::make('logo')
                     ->label('Logo')
                     ->getStateUsing(fn($record) => $record->mediaUrl('logo'))
-                    ->defaultImageUrl(asset('images/placeholder.png')) // 👈 évite l’icône cassée
+                    ->defaultImageUrl(asset('assets/images/default.jpg')) // 👈 évite l’icône cassée
                     ->size(64)
                     ->square()
                     ->openUrlInNewTab()
