@@ -1,24 +1,33 @@
 <?php
 namespace App\Filament\Resources;
 
-use App\Filament\Resources\ChemPharmacyProductResource\Pages;
+use Filament\Tables;
+use Filament\Forms\Form;
+use Filament\Tables\Table;
+use Filament\Resources\Resource;
 use App\Models\ChemPharmacyProduct;
-use App\Support\Filament\RestrictToSupplier;
+use Filament\Tables\Actions\Action;
+use Filament\Forms\Components\Group;
+use Illuminate\Support\Facades\Auth;
+use Maatwebsite\Excel\Facades\Excel;
+use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Textarea;
+use Filament\Tables\Columns\TextColumn;
+use Illuminate\Support\Facades\Storage;
+use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
+use Filament\Tables\Columns\ImageColumn;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
-use Filament\Forms\Components\Group;
-use Filament\Forms\Components\Hidden;
-use Filament\Forms\Components\Section;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Form;
-use Filament\Resources\Resource;
-use Filament\Tables;
-use Filament\Tables\Columns\ImageColumn;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Table;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Database\Eloquent\Builder;
+use App\Exports\ChemPharmacyProductsExport;
+use App\Imports\ChemPharmacyProductsImport;
+use App\Support\Filament\RestrictToSupplier;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
+use App\Filament\Resources\ChemPharmacyProductResource\Pages;
+use Filament\Notifications\Actions\Action as NotificationAction;
 
 class ChemPharmacyProductResource extends Resource
 {
@@ -38,7 +47,20 @@ class ChemPharmacyProductResource extends Resource
     {
         return 'pharmacy.supplier_id'; // via relation
     }
+public static function getEloquentQuery(): Builder
+    {
+        // Requête la plus simple: pas de scope, pas de filtre
+        // return ChemPharmacy::query()->withoutGlobalScopes([SoftDeletingScope::class]);
 
+        $q = ChemPharmacyProduct::query()->withoutGlobalScopes([SoftDeletingScope::class]);
+        $u = Auth::user();
+
+        if ($u?->hasRole('fournisseur')) {
+            $q->where('supplier_id', optional($u->supplier)->id);
+        }
+
+        return $q;
+    }
     public static function form(Form $form): Form
     {
         return $form
@@ -46,7 +68,6 @@ class ChemPharmacyProductResource extends Resource
                 Group::make([
                     Section::make("Formulaire Produit Pharmacie")->schema([
                         Hidden::make('created_by')->default(Auth::id()),
-
 
                         Select::make('pharmacy_id')
                             ->label('Pharmacie')
@@ -103,9 +124,9 @@ class ChemPharmacyProductResource extends Resource
                             ->image()
                             ->directory('pharmacy_products')
                             ->imageEditor()
-                            ->disk('s3') // Filament uploade direct vers S3
+                            ->disk('s3')            // Filament uploade direct vers S3
                             ->visibility('private') // retire si privé
-                            ->enableDownload() // (au lieu de ->downloadable())
+                            ->enableDownload()      // (au lieu de ->downloadable())
                             ->enableOpen()
                             ->helperText('Téléchargez une image du produit (max 2 Mo).'),
 
@@ -124,11 +145,11 @@ class ChemPharmacyProductResource extends Resource
                 ->square()
                 ->size(50)
                 ->getStateUsing(fn($record) => $record->mediaUrl('image')) // URL finale
-                    ->size(64)
-                    ->square()
-                    ->defaultImageUrl(asset('images/PROFI-TIK.jpg'))  // 👈 évite l’icône cassée
-                    ->openUrlInNewTab()
-                    ->url(fn($record) => $record->mediaUrl('image', ttl: 5)), // clic = grande image,
+                ->size(64)
+                ->square()
+                ->defaultImageUrl(asset('images/PROFI-TIK.jpg')) // 👈 évite l’icône cassée
+                ->openUrlInNewTab()
+                ->url(fn($record) => $record->mediaUrl('image', ttl: 5)), // clic = grande image,
 
             TextColumn::make('pharmacy.name')
                 ->label('Pharmacie')
@@ -163,6 +184,138 @@ class ChemPharmacyProductResource extends Resource
         ])
             ->defaultSort('id', 'desc')
             ->filters([])
+            ->headerActions([
+                // Modèle
+                Action::make('template')
+                    ->label('Télécharger le modèle')
+                    ->icon('heroicon-m-document-arrow-down')
+                    ->url(fn() => route('pharmacy_products.template.csv'))
+                    ->openUrlInNewTab(),
+
+                // Import
+                // Import
+                Action::make('import')
+                    ->label('Importer')
+                    ->icon('heroicon-m-arrow-up-tray')
+                    ->form([
+                        FileUpload::make('file')
+                            ->label('Fichier CSV/XLSX')
+                            ->required()
+                            ->disk('local')
+                            ->directory('imports')
+                            ->acceptedFileTypes([
+                                'text/csv', 'text/plain',
+                                'application/vnd.ms-excel',
+                                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                            ])
+                            ->preserveFilenames()
+                            ->downloadable()
+                            ->helperText(
+                                'Pharmacie: pharmacy_id ou pharmacy_name.
+Produit: product_id ou product_sku ou product_name.
+Manufacturer (optionnel): manufacturer_id ou manufacturer_name.
+Champs: status, lot_ref, origin_country(3), expiry_date(YYYY-MM-DD), cost_price, sale_price*,
+currency*(USD/CDF), stock_qty, reorder_level, image(clé S3), description.'
+                            ),
+                    ])
+                    ->action(function (array $data, Action $action): void {
+                        $path = $data['file'] ?? null;
+
+                        if (! $path || ! Storage::disk('local')->exists($path)) {
+                            Notification::make()->title('Fichier introuvable')->danger()->send();
+                            return;
+                        }
+
+                        $import = new ChemPharmacyProductsImport(Auth::id());
+
+                        try {
+                            Excel::import($import, Storage::disk('local')->path($path));
+                        } catch (\Maatwebsite\Excel\Validators\ValidationException $e) {
+                            // ok : les échecs ligne à ligne sont récupérés ci-dessous
+                        } catch (\Throwable $e) {
+                            Notification::make()
+                                ->title('Erreur pendant l’import')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                            return;
+                        }
+
+                        // ====== Récap + rapport d’échecs ======
+                        $failures   = $import->failures();
+                        $errorCount = count($failures);
+                        $created    = $import->created;
+                        $updated    = $import->updated;
+
+                        $rows = collect($failures)->map(function ($f) {
+                            return [
+                                'row'       => $f->row(),
+                                'attribute' => $f->attribute(),
+                                'value'     => (string) data_get($f->values(), $f->attribute()),
+                                'message'   => implode('; ', $f->errors()),
+                            ];
+                        });
+
+                        $reportUrl = null;
+                        if ($errorCount > 0) {
+                            $dir = storage_path('app/imports/reports');
+                            if (! is_dir($dir)) {
+                                mkdir($dir, 0775, true);
+                            }
+
+                            $file = 'import_pharmacy_products_errors_' . now()->format('Ymd_His') . '.csv';
+                            $fp   = fopen($dir . DIRECTORY_SEPARATOR . $file, 'w');
+
+                            fputcsv($fp, ['row', 'attribute', 'value', 'message']);
+                            foreach ($rows as $r) {
+                                fputcsv($fp, [$r['row'], $r['attribute'], $r['value'], $r['message']]);
+                            }
+                            fclose($fp);
+
+                            $reportUrl = route('imports.report', ['file' => $file]);
+                        }
+
+                        $preview = $rows
+                            ->sortBy('row')
+                            ->take(5)
+                            ->map(fn($r) => "Ligne {$r['row']} → {$r['attribute']}: {$r['message']} (valeur: \"{$r['value']}\")")
+                            ->implode("\n");
+
+                        $message = "Créés: {$created} • Mis à jour: {$updated} • Erreurs: {$errorCount}";
+                        if ($errorCount && $preview) {
+                            $message .= "\n" . $preview;
+                        }
+
+                        $notif = Notification::make()
+                            ->title('Import terminé')
+                            ->body($message)
+                            ->{$errorCount ? 'warning' : 'success'}()
+                            ->persistent();
+
+                        if ($reportUrl) {
+                            $notif->actions([
+                                NotificationAction::make('Télécharger le rapport')
+                                    ->url($reportUrl)
+                                    ->openUrlInNewTab(),
+                            ]);
+                        }
+
+                        $notif->send();
+
+                        // ✅ Rafraîchir la table SANS redirection (évite /livewire/update en GET)
+                        $action->getLivewire()->js('$wire.$refresh()');
+                        // (Alternative : $action->getLivewire()->dispatch("refresh"); selon ta version)
+                    }),
+
+                // Export
+                Action::make('export')
+                    ->label('Exporter')
+                    ->icon('heroicon-m-arrow-down-tray')
+                    ->action(fn() => \Maatwebsite\Excel\Facades\Excel::download(
+                        new ChemPharmacyProductsExport(),
+                        'pharmacy_products.xlsx'
+                    )),
+            ])
             ->actions([
                 Tables\Actions\EditAction::make()->label('Modifier'),
                 Tables\Actions\DeleteAction::make()->label('Supprimer'),

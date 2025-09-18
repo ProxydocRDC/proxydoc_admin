@@ -16,8 +16,12 @@ class ChemPharmacy extends Model
 
     protected $casts = [
         'status' => 'integer',
+    'rating'     => 'float',
+    'nb_review'  => 'int',
+    'created_at' => 'datetime',
+    'updated_at' => 'datetime',
+];
 
-    ];
   // Accessors pratiques :
     public function getImageUrlAttribute(): ?string
     {

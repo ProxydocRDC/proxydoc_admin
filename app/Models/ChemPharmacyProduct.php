@@ -21,8 +21,7 @@ class ChemPharmacyProduct extends Model
      protected $attributes = [
         'status' => 1, // actif par défaut
     ];
-
-
+protected $table = 'chem_pharmacy_products';
 
     // Accessors pratiques :
     public function getImageUrlAttribute(): ?string
@@ -44,5 +43,8 @@ public function product()
 {
     return $this->belongsTo(ChemProduct::class, 'product_id');
 }
+public function manufacturer(){ return $this->belongsTo(\App\Models\ChemManufacturer::class); }
+
+
 
 }
