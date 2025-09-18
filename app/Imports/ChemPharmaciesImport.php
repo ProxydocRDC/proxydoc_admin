@@ -192,7 +192,7 @@ WithChunkReading
         }
 
         if ($errors) {
-            return $this->failRow($row, $errors);
+          $this->failRow($row, $errors);
         }
 
         $payload = [

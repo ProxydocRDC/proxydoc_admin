@@ -295,7 +295,7 @@ WithChunkReading
             $errors['currency'] = ['Devise invalide (USD/CDF attendue).'];
         }
 if ($errors) {
-    return $this->failRow($row, $errors);
+    $this->failRow($row, $errors);
 }
 
         // Conversions
