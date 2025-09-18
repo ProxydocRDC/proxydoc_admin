@@ -1,37 +1,38 @@
 <?php
-
 namespace App\Imports;
 
-use Maatwebsite\Excel\Row;
-use Illuminate\Support\Arr;
 use App\Models\ChemPharmacy;
+use App\Models\ChemSupplier;
+use App\Models\User;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException as LvValidationException;
 use Maatwebsite\Excel\Concerns\OnEachRow;
 use Maatwebsite\Excel\Concerns\SkipsFailures;
 use Maatwebsite\Excel\Concerns\SkipsOnFailure;
-use Maatwebsite\Excel\Concerns\WithHeadingRow;
-use Maatwebsite\Excel\Concerns\WithValidation;
 use Maatwebsite\Excel\Concerns\WithBatchInserts;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
-use Maatwebsite\Excel\Validators\ValidationException;
-use App\Models\User;               // adapte si ton modèle user diffère
-use App\Models\ChemSupplier;       // adapte le nom du modèle fournisseur
+use Maatwebsite\Excel\Concerns\WithHeadingRow;
+use Maatwebsite\Excel\Concerns\WithValidation; // adapte si ton modèle user diffère
+use Maatwebsite\Excel\Row;                     // adapte le nom du modèle fournisseur
 // use Illuminate\Validation\ValidationException as LaravelValidationException;
+use Maatwebsite\Excel\Validators\ValidationException as ExcelValidationException;
 
 class ChemPharmaciesImport implements
-    OnEachRow,
-    WithHeadingRow,
-    WithValidation,
-    SkipsOnFailure,
-    WithBatchInserts,
-    WithChunkReading
+OnEachRow,
+WithHeadingRow,
+WithValidation,
+SkipsOnFailure,
+WithBatchInserts,
+WithChunkReading
 {
     use SkipsFailures;
 
     public int $created = 0;
     public int $updated = 0;
 
-    public function __construct(private ?int $actorId = null) {}
+    public function __construct(private ?int $actorId = null)
+    {}
 
     private function actorId(): int
     {
@@ -50,13 +51,15 @@ class ChemPharmaciesImport implements
     // Convertit URL S3 complète -> "pharmacies/file.png", ou laisse la clé telle quelle
     protected function s3KeyFromUrlOrKey(?string $value): ?string
     {
-        if (!is_string($value) || $value === '') return null;
+        if (! is_string($value) || $value === '') {
+            return null;
+        }
 
         // déjà une clé ?
-        if (!preg_match('#^https?://#i', $value)) {
-            $key = ltrim($value, '/');
+        if (! preg_match('#^https?://#i', $value)) {
+            $key    = ltrim($value, '/');
             $bucket = config('filesystems.disks.s3.bucket');
-            if ($bucket && str_starts_with($key, $bucket.'/')) {
+            if ($bucket && str_starts_with($key, $bucket . '/')) {
                 $key = substr($key, strlen($bucket) + 1);
             }
             return $key ?: null;
@@ -65,10 +68,12 @@ class ChemPharmaciesImport implements
         // URL complète -> extraire le path
         $parts = parse_url($value);
         $path  = isset($parts['path']) ? ltrim($parts['path'], '/') : null;
-        if (!$path) return null;
+        if (! $path) {
+            return null;
+        }
 
         $bucket = config('filesystems.disks.s3.bucket');
-        if ($bucket && str_starts_with($path, $bucket.'/')) {
+        if ($bucket && str_starts_with($path, $bucket . '/')) {
             $path = substr($path, strlen($bucket) + 1);
         }
         return $path ?: null;
@@ -78,11 +83,13 @@ class ChemPharmaciesImport implements
 
     protected function resolveSupplierId($idOrName): ?int
     {
-        if (blank($idOrName)) return null;
+        if (blank($idOrName)) {
+            return null;
+        }
 
         // si numérique -> id direct
         if (is_numeric($idOrName)) {
-            return ChemSupplier::whereKey((int)$idOrName)->value('id');
+            return ChemSupplier::whereKey((int) $idOrName)->value('id');
         }
 
         // sinon par nom (insensible à la casse/espaces)
@@ -94,11 +101,13 @@ class ChemPharmaciesImport implements
 
     protected function resolveUserId($idOrEmailOrName): ?int
     {
-        if (blank($idOrEmailOrName)) return null;
+        if (blank($idOrEmailOrName)) {
+            return null;
+        }
 
         // id numérique
         if (is_numeric($idOrEmailOrName)) {
-            return User::whereKey((int)$idOrEmailOrName)->value('id');
+            return User::whereKey((int) $idOrEmailOrName)->value('id');
         }
 
         $v = trim((string) $idOrEmailOrName);
@@ -121,23 +130,23 @@ class ChemPharmaciesImport implements
         // On accepte "supplier_id" OU "supplier_name" (au moins un des deux)
         // et "user_id" OU "user_email" OU "user_name" (au moins un des trois)
         return [
-            'name'           => ['required', 'string', 'max:256'],
-            'zone_id'        => ['required', 'integer'],    // à adapter si lookup par nom de zone
-            'status'         => ['nullable', 'integer'],
+            'name'          => ['required', 'string', 'max:256'],
+            'zone_id'       => ['required', 'integer'], // à adapter si lookup par nom de zone
+            'status'        => ['nullable', 'integer'],
 
-            'supplier_id'    => ['nullable', 'integer'],
-            'supplier_name'  => ['nullable', 'string', 'max:255'],
-            'user_id'        => ['nullable', 'integer'],
-            'user_email'     => ['nullable', 'email'],
-            'user_name'      => ['nullable', 'string', 'max:255'],
+            'supplier_id'   => ['nullable', 'integer'],
+            'supplier_name' => ['nullable', 'string', 'max:255'],
+            'user_id'       => ['nullable', 'integer'],
+            'user_email'    => ['nullable', 'email'],
+            'user_name'     => ['nullable', 'string', 'max:255'],
 
-            'phone'          => ['nullable', 'string', 'max:20'],
-            'email'          => ['nullable', 'email', 'max:256'],
-            'address'        => ['nullable', 'string', 'max:500'],
-            'description'    => ['nullable', 'string', 'max:1000'],
-            'logo'           => ['nullable', 'string', 'max:1000'], // URL ou clé, on convertira
-            'rating'         => ['nullable', 'numeric'],
-            'nb_review'      => ['nullable', 'integer'],
+            'phone'         => ['nullable', 'string', 'max:20'],
+            'email'         => ['nullable', 'email', 'max:256'],
+            'address'       => ['nullable', 'string', 'max:500'],
+            'description'   => ['nullable', 'string', 'max:1000'],
+            'logo'          => ['nullable', 'string', 'max:1000'], // URL ou clé, on convertira
+            'rating'        => ['nullable', 'numeric'],
+            'nb_review'     => ['nullable', 'integer'],
         ];
     }
 
@@ -149,8 +158,10 @@ class ChemPharmaciesImport implements
         ];
     }
 
-    public function chunkSize(): int { return 500; }
-    public function batchSize(): int { return 500; }
+    public function chunkSize(): int
+    {return 500;}
+    public function batchSize(): int
+    {return 500;}
 
     /** -------- Traitement ligne par ligne -------- */
 
@@ -167,17 +178,21 @@ class ChemPharmaciesImport implements
         );
 
         // champs NOT NULL de ton schéma
-        $zoneId  = Arr::get($r, 'zone_id');
-        $status  = (int) (Arr::get($r, 'status', 1) ?: 1);
+        $zoneId = Arr::get($r, 'zone_id');
+        $status = (int) (Arr::get($r, 'status', 1) ?: 1);
 
         // Contrôles applicatifs avant insert
         $errors = [];
-        if (empty($supplierId)) $errors['supplier'] = ['Fournisseur introuvable (supplier_id / supplier_name).'];
-        if (empty($userId))     $errors['user']     = ['Utilisateur introuvable (user_id / user_email / user_name).'];
+        if (empty($supplierId)) {
+            $errors['supplier'] = ['Fournisseur introuvable (supplier_id / supplier_name).'];
+        }
+
+        if (empty($userId)) {
+            $errors['user'] = ['Utilisateur introuvable (user_id / user_email / user_name).'];
+        }
 
         if ($errors) {
-            // marque cette ligne en échec lisible
-            throw new ValidationException(ValidationException::withMessages($errors));
+            return $this->failRow($row, $errors);
         }
 
         $payload = [
@@ -204,5 +219,13 @@ class ChemPharmaciesImport implements
             ]));
             $this->created++;
         });
+    }
+
+    private function failRow(Row $row, array $messages): never
+    {
+        throw new ExcelValidationException(
+            LvValidationException::withMessages($messages),
+            $row
+        );
     }
 }
