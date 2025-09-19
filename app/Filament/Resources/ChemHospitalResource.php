@@ -21,8 +21,11 @@ use Filament\Forms\Components\Toggle;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
+use Filament\Tables\Actions\Action;
+use Filament\Tables\Actions\ActionGroup;
 use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\ImageColumn;
@@ -435,11 +438,63 @@ class ChemHospitalResource extends Resource
                 Tables\Filters\SelectFilter::make('status')->label('Actif ?')->options([1 => 'Actif', 0 => 'Inactif']),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make()->label('Voir'),
-                Tables\Actions\EditAction::make()->label('Modifier'),
-                Tables\Actions\DeleteAction::make()
-                    ->visible(fn() => Auth::user()?->hasRole('super_admin'))
-                    ->label('Supprimer'),
+                // ActionGroup::make([
+                    Action::make('clearImages')
+                        ->label('Vider images')
+                        ->icon('heroicon-m-photo')
+                        ->color('warning')
+                        ->visible(fn($record) => ! empty($record->images))
+                        ->form([
+                            \Filament\Forms\Components\Toggle::make('delete_s3')
+                                ->label('Supprimer aussi les fichiers S3')
+                                ->helperText('Sinon, seules les références en base seront vidées.')
+                                ->default(false),
+                        ])
+                        ->requiresConfirmation()
+                        ->action(function (array $data, $record) {
+                            $keys    = is_array($record->logo) ? $record->logo : null;
+                            $deleted = 0;
+
+                            if (! empty($data['delete_s3']) && $keys) {
+                                $disk = Storage::disk('s3');
+                                foreach ($keys as $k) {
+                                    // au cas où il resterait une URL complète :
+                                    $key = preg_match('#^https?://#i', (string) $k)
+                                        ? ltrim(parse_url($k, PHP_URL_PATH) ?? '', '/')
+                                        : ltrim((string) $k, '/');
+
+                                    $bucket = config('filesystems.disks.s3.bucket');
+                                    if ($bucket && Str::startsWith($key, $bucket . '/')) {
+                                        $key = substr($key, strlen($bucket) + 1);
+                                    }
+
+                                    try {
+                                        if ($key) {
+                                            $disk->delete($key);
+                                            $deleted++;
+                                        }
+                                    } catch (\Throwable $e) {
+                                        // on continue, on notifie juste à la fin
+                                    }
+                                }
+                            }
+
+                            // Vider la colonne en base (choix: [] plutôt que null)
+                            $record->logo = null;
+                            $record->save();
+
+                            Notification::make()
+                                ->title('Images vidées')
+                                ->body(($deleted ? "Fichiers S3 supprimés: {$deleted}. " : '') . 'La colonne "images" est maintenant vide.')
+                                ->success()
+                                ->send();
+                        }),
+                    Tables\Actions\ViewAction::make()->label('Voir'),
+                    Tables\Actions\EditAction::make()->label('Modifier'),
+                    Tables\Actions\DeleteAction::make()
+                        ->visible(fn() => Auth::user()?->hasRole('super_admin'))
+                        ->label('Supprimer'),
+                // ]),
             ])
             ->bulkActions([
                 Tables\Actions\DeleteBulkAction::make()

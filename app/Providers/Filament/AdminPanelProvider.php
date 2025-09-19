@@ -63,6 +63,9 @@ class AdminPanelProvider extends PanelProvider
                 'primary' => "#13A4D3",
                 // 'primary' => Color::Amber,
             ])
+            ->pages([
+                \App\Filament\Pages\Dashboard::class, // 👈 ta page custom
+            ])
             ->authGuard('web')
             ->unsavedChangesAlerts()
             ->brandName('Dashboard PROXYDOC')
