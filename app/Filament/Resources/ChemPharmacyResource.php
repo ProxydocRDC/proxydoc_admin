@@ -1,36 +1,38 @@
 <?php
 namespace App\Filament\Resources;
 
-use App\Exports\ChemPharmaciesExport;
-use App\Filament\Resources\ChemPharmacyResource\Pages;
-use App\Models\ChemPharmacy;
-use App\Support\Filament\RestrictToSupplier;
-use Filament\Forms\Components\FileUpload;
-use Filament\Forms\Components\Group;
-use Filament\Forms\Components\Hidden;
-use Filament\Forms\Components\Section;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Form;
-use Filament\Notifications\Actions\Action as NotificationAction;
-use Filament\Notifications\Notification;
-use Filament\Resources\Resource;
 use Filament\Tables;
-use Filament\Tables\Actions\Action;
-use Filament\Tables\Columns\ImageColumn;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Filters\SelectFilter;
+use Filament\Forms\Form;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Str;
+use App\Models\ChemPharmacy;
+use Filament\Resources\Resource;
+use Filament\Tables\Actions\Action;
+use Filament\Forms\Components\Group;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\ChemPharmaciesExport;
+use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Textarea;
+use Filament\Tables\Columns\TextColumn;
+use Illuminate\Support\Facades\Storage;
+use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
+use Filament\Tables\Actions\ActionGroup;
+use Filament\Tables\Columns\ImageColumn;
+use Filament\Forms\Components\FileUpload;
+use Filament\Tables\Filters\SelectFilter;
+use Illuminate\Database\Eloquent\Builder;
+use App\Support\Filament\RestrictToSupplier;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
+use App\Filament\Resources\ChemPharmacyResource\Pages;
+use Filament\Notifications\Actions\Action as NotificationAction;
 
 class ChemPharmacyResource extends Resource
 {
-    use RestrictToSupplier;
+    // use RestrictToSupplier;
     protected static ?string $model = ChemPharmacy::class;
 
     protected static ?string $navigationIcon   = 'heroicon-o-building-storefront';
@@ -352,6 +354,7 @@ supplier_id (id) OU supplier_name (nom), user_id (id) OU user_email (email) OU u
                     }),
             ])
             ->actions([
+                ActionGroup::make([
                 Tables\Actions\Action::make('orders')
                     ->label('Commandes')
                     ->icon('heroicon-o-receipt-percent')
@@ -360,6 +363,58 @@ supplier_id (id) OU supplier_name (nom), user_id (id) OU user_email (email) OU u
                     ),
                 Tables\Actions\EditAction::make()->label('Modifier'),
                 Tables\Actions\DeleteAction::make()->label('Supprimer'),
+
+                    Action::make('clearImages')
+                        ->label('Vider images')
+                        ->icon('heroicon-m-photo')
+                        ->color('warning')
+                        ->visible(fn($record) => ! empty($record->images))
+                        ->form([
+                            \Filament\Forms\Components\Toggle::make('delete_s3')
+                                ->label('Supprimer aussi les fichiers S3')
+                                ->helperText('Sinon, seules les références en base seront vidées.')
+                                ->default(false),
+                        ])
+                        ->requiresConfirmation()
+                        ->action(function (array $data, $record) {
+                            $keys    = is_array($record->logo) ? $record->logo : null;
+                            $deleted = 0;
+
+                            if (! empty($data['delete_s3']) && $keys) {
+                                $disk = Storage::disk('s3');
+                                foreach ($keys as $k) {
+                                    // au cas où il resterait une URL complète :
+                                    $key = preg_match('#^https?://#i', (string) $k)
+                                        ? ltrim(parse_url($k, PHP_URL_PATH) ?? '', '/')
+                                        : ltrim((string) $k, '/');
+
+                                    $bucket = config('filesystems.disks.s3.bucket');
+                                    if ($bucket && Str::startsWith($key, $bucket . '/')) {
+                                        $key = substr($key, strlen($bucket) + 1);
+                                    }
+
+                                    try {
+                                        if ($key) {
+                                            $disk->delete($key);
+                                            $deleted++;
+                                        }
+                                    } catch (\Throwable $e) {
+                                        // on continue, on notifie juste à la fin
+                                    }
+                                }
+                            }
+
+                            // Vider la colonne en base (choix: [] plutôt que null)
+                            $record->logo = null;
+                            $record->save();
+
+                            Notification::make()
+                                ->title('Images vidées')
+                                ->body(($deleted ? "Fichiers S3 supprimés: {$deleted}. " : '') . 'La colonne "images" est maintenant vide.')
+                                ->success()
+                                ->send();
+                        }),
+            ])
             ])
             ->bulkActions([
                 Tables\Actions\DeleteBulkAction::make()->label('Supprimer la sélection'),

@@ -103,16 +103,16 @@ class UserResource extends Resource
                             ->dehydrated(false) // ne pas sauvegarder en DB
                             ->required(fn(string $context) => $context === 'create')
                             ->columnSpan(6),
-                        // Select::make('status')
-                        //     ->default(1) // Activé
-                        //     ->dehydrated()
-                        //     ->visible(fn($livewire) => $livewire instanceof CreateRecord || $livewire instanceof EditRecord)
-                        //     ->options([
-                        //         '1' => 'Activé',
-                        //         '2' => 'En attente',
-                        //         '3' => 'Désactivé',
-                        //         '4' => 'Supprimé',
-                        //     ])->columnSpan(6),
+                        Select::make('default_role')
+                            ->default(1) // Activé
+                            ->dehydrated()
+                            ->visible(fn($livewire) => $livewire instanceof CreateRecord || $livewire instanceof EditRecord)
+                            ->options([
+                                '1' => 'Activé',
+                                '2' => 'Docteur',
+                                '3' => 'Livreur',
+                                '4' => 'Supprimé',
+                            ])->columnSpan(6),
                         Select::make('roles')
                             ->relationship('roles', 'name')
                             ->multiple()

@@ -1,43 +1,44 @@
 <?php
 namespace App\Filament\Resources;
 
-use App\Models\ChemHospital;
-use App\Models\MainCity;
-use App\Models\MainCountry;
-use App\Models\ProxyRefHospitalTier;
-use App\Models\ProxyService;
-use Filament\Forms\Components\Fieldset;
-use Filament\Forms\Components\FileUpload;
-use Filament\Forms\Components\Group;
-use Filament\Forms\Components\Hidden;
-use Filament\Forms\Components\Repeater;
-use Filament\Forms\Components\Section;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TagsInput;
-use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\TimePicker;
-use Filament\Forms\Components\Toggle;
-use Filament\Forms\Form;
+use Filament\Tables;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
-use Filament\Notifications\Notification;
+use App\Models\MainCity;
+use Filament\Forms\Form;
+use Filament\Tables\Table;
+use App\Models\MainCountry;
+use Illuminate\Support\Str;
+use App\Models\ChemHospital;
+use App\Models\ProxyService;
 use Filament\Resources\Resource;
-use Filament\Tables;
 use Filament\Tables\Actions\Action;
+use App\Models\ProxyRefHospitalTier;
+use Filament\Forms\Components\Group;
+use Illuminate\Support\Facades\Auth;
+use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Toggle;
+use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Fieldset;
+use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Textarea;
+use Filament\Tables\Columns\IconColumn;
+use Filament\Tables\Columns\TextColumn;
+use Illuminate\Support\Facades\Storage;
+use Filament\Forms\Components\TagsInput;
+use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 use Filament\Tables\Actions\ActionGroup;
 use Filament\Tables\Columns\BadgeColumn;
-use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\ImageColumn;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Table;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
+use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\TimePicker;
+use App\Support\Filament\RestrictToSupplier;
 
 class ChemHospitalResource extends Resource
 {
-    // use RestrictToSupplier; // la table a bien supplier_id → OK
+    use RestrictToSupplier; // la table a bien supplier_id → OK
 
     protected static ?string $model = ChemHospital::class;
 
@@ -438,7 +439,7 @@ class ChemHospitalResource extends Resource
                 Tables\Filters\SelectFilter::make('status')->label('Actif ?')->options([1 => 'Actif', 0 => 'Inactif']),
             ])
             ->actions([
-                // ActionGroup::make([
+                ActionGroup::make([
                     Action::make('clearImages')
                         ->label('Vider images')
                         ->icon('heroicon-m-photo')
@@ -494,7 +495,7 @@ class ChemHospitalResource extends Resource
                     Tables\Actions\DeleteAction::make()
                         ->visible(fn() => Auth::user()?->hasRole('super_admin'))
                         ->label('Supprimer'),
-                // ]),
+                ]),
             ])
             ->bulkActions([
                 Tables\Actions\DeleteBulkAction::make()
