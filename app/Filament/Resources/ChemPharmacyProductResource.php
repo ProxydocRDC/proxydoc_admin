@@ -32,7 +32,7 @@ use Filament\Notifications\Actions\Action as NotificationAction;
 class ChemPharmacyProductResource extends Resource
 {
 
-    use RestrictToSupplier;
+    // use RestrictToSupplier;
 
     protected static ?string $model = ChemPharmacyProduct::class;
 
