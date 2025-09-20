@@ -47,13 +47,15 @@ class SubscriptionPlanResource extends \Filament\Resources\Resource
 
                     Select::make('currency')->label('Devise')
                         ->options(['USD' => 'USD', 'CDF' => 'CDF', 'EUR' => 'EUR'])
-                        ->default('USD')->required()->columnSpan(3),
+                        ->default('USD')->required()->columnSpan(2),
 
                     TextInput::make('max_users')->label('Max utilisateurs inclus')
-                        ->numeric()->minValue(1)->default(1)->required()->columnSpan(3),
+                        ->numeric()->minValue(1)->default(1)->required()->columnSpan(2),
+                    TextInput::make('max_appointments')->label('Max consultations inclus')
+                        ->numeric()->minValue(1)->default(1)->required()->columnSpan(2),
 
                     TextInput::make('extra_user_price')->label('Prix / utilisateur supplémentaire')
-                        ->numeric()->minValue(0)->step('0.01')->columnSpan(3),
+                        ->numeric()->minValue(0)->step('0.01')->columnSpan(2),
                 ])->columns(12),
             ])->columnSpanFull(),
         ]);
