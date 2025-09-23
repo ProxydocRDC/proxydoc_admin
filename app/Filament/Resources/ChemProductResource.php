@@ -31,6 +31,8 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Maatwebsite\Excel\Facades\Excel;
+use Filament\Tables\Filters\Filter;
+use Illuminate\Database\Eloquent\Builder;
 
 class ChemProductResource extends Resource
 {
@@ -337,6 +339,10 @@ class ChemProductResource extends Resource
                 SelectFilter::make('status')
                     ->label('Statut')
                     ->options([1 => 'Actif', 0 => 'Inactif']),
+                    Filter::make('without_images')
+                ->label('Sans image')
+                ->query(fn (Builder $q) => $q->withoutImages())
+                ->indicator('Sans image'),
             ])
             ->actions([
                 ActionGroup::make([

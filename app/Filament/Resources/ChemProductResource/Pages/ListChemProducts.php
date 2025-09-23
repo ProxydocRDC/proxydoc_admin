@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Spatie\SimpleExcel\SimpleExcelWriter;
+use Filament\Resources\Components\Tab;
+use Illuminate\Database\Eloquent\Builder;
 
 class ListChemProducts extends ListRecords
 {
@@ -22,7 +24,17 @@ class ListChemProducts extends ListRecords
     public const REQUIRED_HEADERS = [
         'code', 'label', 'description', 'status', 'category_code', 'manufacturer_code', 'price', 'currency',
     ];
+   public function getTabs(): array
+    {
+        return [
+            'all' => Tab::make('Tous')
+                ->badge( (string) ChemProduct::query()->count() ),
 
+            'without_images' => Tab::make('Sans image')
+                ->badge( (string) ChemProduct::withoutImages()->count() )
+                ->modifyQueryUsing(fn (Builder $q) => $q->withoutImages()),
+        ];
+    }
     protected function getHeaderActions(): array
     {
         return [
