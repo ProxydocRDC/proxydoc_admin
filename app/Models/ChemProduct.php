@@ -10,7 +10,7 @@ use App\Models\ChemPharmaceuticalForm;
 use App\Models\Concerns\HasS3MediaUrls;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
-
+use Illuminate\Database\Eloquent\Builder;
 class ChemProduct extends Model
 {
        use HasS3MediaUrls;
