@@ -1,38 +1,41 @@
 <?php
 namespace App\Filament\Resources;
 
-use App\Filament\Resources\ChemProductResource\Pages;
-use App\Imports\ChemProductsImport;
-use App\Models\ChemProduct;
-use Filament\Forms\Components\FileUpload;
-use Filament\Forms\Components\Group;
-use Filament\Forms\Components\Hidden;
-use Filament\Forms\Components\Section;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Toggle;
-use Filament\Forms\Form;
-use Filament\Notifications\Actions\Action as NotificationAction;
-use Filament\Notifications\Notification;
-use Filament\Resources\Resource;
 use Filament\Tables;
+use Filament\Forms\Form;
+use Filament\Tables\Table;
+use App\Models\ChemProduct;
+use Illuminate\Support\Str;
+use Filament\Resources\Resource;
+use Illuminate\Support\Facades\DB;
+use App\Imports\ChemProductsImport;
 use Filament\Tables\Actions\Action;
-use Filament\Tables\Actions\ActionGroup;
+use Filament\Tables\Filters\Filter;
+use Filament\Forms\Components\Group;
+use Illuminate\Support\Facades\Auth;
+use Maatwebsite\Excel\Facades\Excel;
+use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Toggle;
+use Filament\Forms\Components\Section;
+use Illuminate\Support\Facades\Schema;
+use Filament\Forms\Components\Textarea;
 use Filament\Tables\Actions\BulkAction;
+use Filament\Tables\Columns\TextColumn;
+use Illuminate\Support\Facades\Storage;
+use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
+use Filament\Tables\Actions\ActionGroup;
 use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Columns\ImageColumn;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\FileUpload;
 use Filament\Tables\Columns\SelectColumn;
-use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
-use Filament\Tables\Table;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
-use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
-use Maatwebsite\Excel\Facades\Excel;
-use Filament\Tables\Filters\Filter;
 use Illuminate\Database\Eloquent\Builder;
+use App\Filament\Resources\ChemProductResource\Pages;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Filament\Notifications\Actions\Action as NotificationAction;
 
 class ChemProductResource extends Resource
 {
@@ -231,6 +234,60 @@ class ChemProductResource extends Resource
 
     public static function table(Table $table): Table
     {
+               // on prépare des filtres “optionnels” qui ne s’ajoutent que si la colonne existe
+        $filters = [
+            // Période (toujours safe)
+            Filter::make('created_at')
+                ->label('Période')
+                ->form([
+                    DatePicker::make('from')->label('Du'),
+                    DatePicker::make('to')->label('Au'),
+                ])
+                ->query(function (Builder $q, array $data) {
+                    return $q
+                        ->when($data['from'] ?? null, fn ($qq) => $qq->whereDate('created_at', '>=', $data['from']))
+                        ->when($data['to']   ?? null, fn ($qq) => $qq->whereDate('created_at', '<=', $data['to']));
+                }),
+        ];
+
+        // Filtre “Sans image” (utile même avec l’onglet)
+        $filters[] = Filter::make('without_images')
+            ->label('Sans image')
+            ->indicator('Sans image')
+            ->query(fn (Builder $q) => static::applyWithoutImages($q));
+
+        // Filtre “Avec image”
+        $filters[] = Filter::make('with_images')
+            ->label('Avec image')
+            ->indicator('Avec image')
+            ->query(fn (Builder $q) => static::applyWithImages($q));
+
+        // Filtre “Statut” si la colonne existe
+        if (Schema::hasColumn('chem_products', 'status')) {
+            $filters[] = SelectFilter::make('status')
+                ->label('Statut')
+                ->options([
+                    1 => 'Actif',
+                    0 => 'Inactif',
+                ]);
+        }
+
+        // Filtre “Prix” si la colonne existe (min/max)
+        if (Schema::hasColumn('chem_products', 'sale_price')) {
+            $filters[] = Filter::make('sale_price_range')
+                ->label('Prix (min/max)')
+                ->form([
+                    TextInput::make('min')->numeric()->placeholder('Min'),
+                    TextInput::make('max')->numeric()->placeholder('Max'),
+                ])
+                ->query(function (Builder $q, array $data) {
+                    $min = $data['min'] ?? null;
+                    $max = $data['max'] ?? null;
+                    return $q
+                        ->when($min !== null && $min !== '', fn ($qq) => $qq->where('sale_price', '>=', (float) $min))
+                        ->when($max !== null && $max !== '', fn ($qq) => $qq->where('sale_price', '<=', (float) $max));
+                });
+        }
         return $table
             ->columns([
                 TextColumn::make('index')
@@ -288,7 +345,27 @@ class ChemProductResource extends Resource
                 TextColumn::make('form.name')
                     ->label('Forme')
                     ->toggleable(),
-
+Tables\Columns\TextColumn::make('created_at')->date('Y-m-d')->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\IconColumn::make('has_images')
+                    ->label('Image ?')
+                    ->boolean()
+                    ->state(function ($record) {
+                        // Détermine si le produit a au moins une image
+                        $images = $record->images ?? null;
+                        if (is_string($images)) {
+                            $images = trim($images);
+                            if ($images === '' || $images === '[]') return false;
+                            // si c'est du JSON valide et array vide/plein
+                            try {
+                                $decoded = json_decode($images, true, 512, JSON_THROW_ON_ERROR);
+                                return is_array($decoded) && count($decoded) > 0;
+                            } catch (\Throwable) {
+                                return true; // une chaîne non vide ≠ '[]' → on considère “a une image”
+                            }
+                        }
+                        if (is_array($images)) return count($images) > 0;
+                        return false;
+                    }),
                 TextColumn::make('strength')
                     ->label('Dosage')
                     ->formatStateUsing(fn($state, $record) => $state ? rtrim(rtrim(number_format((float) $state, 2, '.', ''), '0'), '.') . ' ' . ($record->unit ?? '') : '—')
@@ -339,10 +416,11 @@ class ChemProductResource extends Resource
                 SelectFilter::make('status')
                     ->label('Statut')
                     ->options([1 => 'Actif', 0 => 'Inactif']),
-                    Filter::make('without_images')
-                ->label('Sans image')
-                ->query(fn (Builder $q) => $q->withoutImages())
-                ->indicator('Sans image'),
+                Filter::make('without_images')
+                    ->label('Sans image')
+                    ->indicator('Sans image')
+                    ->query(fn(Builder $q) => static::applyWithoutImages($q)),
+
             ])
             ->actions([
                 ActionGroup::make([
@@ -589,7 +667,8 @@ Optionnels : category_code, manufacturer_name, form_name, sku, barcode, strength
                             ->send();
                     }),
                 Tables\Actions\DeleteBulkAction::make()->label('Supprimer la sélection'),
-            ]);
+            ])->filters($filters)
+            ->defaultSort('id', 'desc');
     }
 
     public static function getRelations(): array
@@ -606,5 +685,91 @@ Optionnels : category_code, manufacturer_name, form_name, sku, barcode, strength
             'create' => Pages\CreateChemProduct::route('/create'),
             'edit'   => Pages\EditChemProduct::route('/{record}/edit'),
         ];
+    }
+
+
+    /** Condition SQL “sans image” (string, groupée) selon SGBD */
+    protected static function sqlWithoutImages(): string
+    {
+        $driver = DB::connection()->getDriverName();
+
+        if ($driver === 'mysql') {
+            return "("
+                . "images IS NULL"
+                . " OR TRIM(COALESCE(images,'')) = ''"
+                . " OR images = '[]'"
+                . " OR (JSON_VALID(images) AND JSON_TYPE(images) = 'ARRAY' AND JSON_LENGTH(images) = 0)"
+                . ")";
+        }
+
+        // Postgres (pgsql)
+        return "("
+            . "images IS NULL"
+            . " OR TRIM(COALESCE(images::text,'')) = ''"
+            . " OR images = '[]'"
+            . " OR (images::text <> '' AND jsonb_typeof(images::jsonb) = 'array' AND jsonb_array_length(images::jsonb) = 0)"
+            . ")";
+    }
+
+    /** Condition SQL “avec image” (string, groupée) selon SGBD */
+    protected static function sqlWithImages(): string
+    {
+        $driver = DB::connection()->getDriverName();
+
+        if ($driver === 'mysql') {
+            return "("
+                . "(images IS NOT NULL AND TRIM(images) <> '' AND images <> '[]')"
+                . " OR (JSON_VALID(images) AND JSON_TYPE(images) = 'ARRAY' AND JSON_LENGTH(images) > 0)"
+                . ")";
+        }
+
+        // Postgres (pgsql)
+        return "("
+            . "(images IS NOT NULL AND TRIM(images::text) <> '' AND images <> '[]')"
+            . " OR (images::text <> '' AND jsonb_typeof(images::jsonb) = 'array' AND jsonb_array_length(images::jsonb) > 0)"
+            . ")";
+    }
+
+    /** Applique la condition “sans image” */
+    public static function applyWithoutImages(Builder $q): Builder
+    {
+        return $q->whereRaw(static::sqlWithoutImages());
+    }
+
+    /** Applique la condition “avec image” */
+    public static function applyWithImages(Builder $q): Builder
+    {
+        return $q->whereRaw(static::sqlWithImages());
+    }
+
+    /** Compteurs pour badges d’onglets / navigation */
+    public static function countAll(): int
+    {
+        return (int) static::getModel()::query()->count();
+    }
+
+    public static function countWithoutImages(): int
+    {
+        $q = static::getModel()::query();
+        static::applyWithoutImages($q);
+        return (int) $q->count();
+    }
+
+    public static function countWithImages(): int
+    {
+        $q = static::getModel()::query();
+        static::applyWithImages($q);
+        return (int) $q->count();
+    }
+    /* -------------------- Badge dans le menu (total produits) -------------------- */
+
+    public static function getNavigationBadge(): ?string
+    {
+        try {return (string) static::countAll();} catch (\Throwable) {return null;}
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'info';
     }
 }

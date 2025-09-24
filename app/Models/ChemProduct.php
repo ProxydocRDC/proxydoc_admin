@@ -7,13 +7,15 @@ use App\Models\ChemPosology;
 use App\Models\ChemManufacturer;
 use App\Models\ChemPharmacyProduct;
 use App\Models\ChemPharmaceuticalForm;
+use App\Models\Concerns\HasImageScopes;
 use App\Models\Concerns\HasS3MediaUrls;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Database\Eloquent\Builder;
+
 class ChemProduct extends Model
 {
-       use HasS3MediaUrls;
+       use HasS3MediaUrls,HasImageScopes;
 
     // Accessors pratiques :
     public function getImageUrlAttribute(): ?string
@@ -153,7 +155,7 @@ public function pharmacyProducts()
     return $this->hasMany(ChemPharmacyProduct::class, 'product_id');
 }
  /** Produits sans images (images NULL ou []). Support MySQL & Postgres */
-    public function scopeWithoutImages(Builder $q): Builder
+    public static function scopeWithoutImages(Builder $q): Builder
     {
         $driver = $q->getModel()->getConnection()->getDriverName();
 

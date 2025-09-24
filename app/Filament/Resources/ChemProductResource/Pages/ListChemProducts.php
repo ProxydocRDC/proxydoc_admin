@@ -30,9 +30,14 @@ class ListChemProducts extends ListRecords
             'all' => Tab::make('Tous')
                 ->badge( (string) ChemProduct::query()->count() ),
 
-            'without_images' => Tab::make('Sans image')
-                ->badge( (string) ChemProduct::withoutImages()->count() )
-                ->modifyQueryUsing(fn (Builder $q) => $q->withoutImages()),
+          'without_images' => Tab::make('Sans image')
+                ->badge((string) ChemProductResource::countWithoutImages())
+                ->modifyQueryUsing(fn (Builder $q) => ChemProductResource::applyWithoutImages($q)),
+
+            'with_images' => Tab::make('Avec image')
+                ->badge((string) ChemProductResource::countWithImages())
+                ->modifyQueryUsing(fn (Builder $q) => ChemProductResource::applyWithImages($q)),
+
         ];
     }
     protected function getHeaderActions(): array
