@@ -7,15 +7,13 @@ use App\Models\ChemPosology;
 use App\Models\ChemManufacturer;
 use App\Models\ChemPharmacyProduct;
 use App\Models\ChemPharmaceuticalForm;
-use App\Models\Concerns\HasImageScopes;
 use App\Models\Concerns\HasS3MediaUrls;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Database\Eloquent\Builder;
 
 class ChemProduct extends Model
 {
-       use HasS3MediaUrls,HasImageScopes;
+       use HasS3MediaUrls;
 
     // Accessors pratiques :
     public function getImageUrlAttribute(): ?string
@@ -26,7 +24,7 @@ class ChemProduct extends Model
     public function getImagesUrlsAttribute(): array
     {
         return $this->mediaUrls('images');     // foreach ($model->images_urls as $url) ...
-    }
+    } 
      /** Retourne toutes les URLs (tableau), en filtrant les vides */
     public function imageUrls(): array
     {
@@ -43,7 +41,7 @@ class ChemProduct extends Model
         $urls = $this->imageUrls();
         return $urls[0] ?? null;
     }
-
+    
      protected function keyFromUrl(string $url): ?string
     {
         $parts = parse_url($url);
@@ -119,7 +117,7 @@ class ChemProduct extends Model
         return $all[0] ?? null;
         // return $all[0] ?? null;
     }
-
+    
     protected $guarded = [];
     protected $casts = [
         "images"=>"array",
@@ -154,21 +152,5 @@ public function pharmacyProducts()
 {
     return $this->hasMany(ChemPharmacyProduct::class, 'product_id');
 }
- /** Produits sans images (images NULL ou []). Support MySQL & Postgres */
-    public static function scopeWithoutImages(Builder $q): Builder
-    {
-        $driver = $q->getModel()->getConnection()->getDriverName();
 
-        return $q->where(function (Builder $qq) use ($driver) {
-            $qq->whereNull('images')
-               ->orWhere('images', '=', '[]')        // au cas où c'est stocké comme texte
-               ->orWhere('images', '=', '');         // au cas où…
-
-            if ($driver === 'mysql') {
-                $qq->orWhereRaw('JSON_LENGTH(images) = 0');
-            } elseif (in_array($driver, ['pgsql','postgres','postgresql'], true)) {
-                $qq->orWhereRaw('jsonb_array_length(images::jsonb) = 0');
-            }
-        });
-    }
 }
