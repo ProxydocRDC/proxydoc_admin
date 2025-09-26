@@ -240,32 +240,40 @@ class ChemPharmacyProductResource extends Resource
           // On précharge la pharmacie + ses agrégats pour construire le label du groupe
         ->modifyQueryUsing(fn ($query) => $query->with(['pharmacy', 'product']))
         ->groups([
-            groupingGroup::make('pharmacy_id')->label('Pharmacie')->collapsible(),
+            groupingGroup::make('pharmacy.name')->label('Pharmacie')->collapsible(),
         ])
-        ->defaultGroup('pharmacy_id')          // ✅ OK
-        ->defaultSort('pharmacy_id')           // ✅ pas de colonne relationnelle ici
+        ->defaultGroup('pharmacy.name')          // ✅ OK
+        ->defaultGroup('pharmacy.name')
+
+        // 🔎 Recherche globale & par colonne
+        ->persistSearchInSession()           // mémorise la recherche globale
+        ->persistColumnSearchesInSession()   // mémorise les recherches par colonne      // ✅ pas de colonne relationnelle ici
 
         // ✅ Groupement par pharmacie avec entête custom
-        ->groups([
-            groupingGroup::make('pharmacy_id')
-                ->label('Pharmacie')
-                ->getTitleFromRecordUsing(function ($record) {
-                    $p      = $record->pharmacy;
-                    $name   = $p?->name ?? '—';
-                    $count  = (int) ($p?->pharmacy_products_count ?? 0);
-                    $stock  = (int) ($p?->pharmacy_products_sum_stock_qty ?? 0);
+        // ->groups([
+        //     groupingGroup::make('pharmacy_id')
+        //         ->label('Pharmacie')
+        //         ->getTitleFromRecordUsing(function ($record) {
+        //             $p      = $record->pharmacy;
+        //             $name   = $p?->name ?? '—';
+        //             $count  = (int) ($p?->pharmacy_products_count ?? 0);
+        //             $stock  = (int) ($p?->pharmacy_products_sum_stock_qty ?? 0);
 
-                    // Formatage gentil (espaces comme séparateurs de milliers)
-                    $stockFmt = number_format($stock, 0, ',', ' ');
+        //             // Formatage gentil (espaces comme séparateurs de milliers)
+        //             $stockFmt = number_format($stock, 0, ',', ' ');
 
-                    return "Pharmacie : {$name} ({$count} produits, Stock total : {$stockFmt})";
-                })
-                ->collapsible(),
-        ])
-        ->defaultGroup('pharmacy_id')
+        //             return "Pharmacie : {$name} ({$count} produits, Stock total : {$stockFmt})";
+        //         })
+        //         ->collapsible(),
+        // ])
+        // ->defaultGroup('pharmacy_id')
 
         // Colonnes (exemple)
         ->columns([
+            TextColumn::make('pharmacy.name')
+                ->label('Pharmacie')
+                ->searchable(isIndividual: true, isGlobal: true) // colonne & global
+                ->sortable(),
             TextColumn::make('product.name')->label('Produit')
                 ->searchable(isIndividual: true, isGlobal: true)
                 ->sortable(),
@@ -564,8 +572,10 @@ currency*(USD/CDF), stock_qty, reorder_level, image(clé S3), description.'
             ->bulkActions([
                 Tables\Actions\DeleteBulkAction::make()->label('Supprimer sélection'),
             ])->filtersFormColumns(2)
-        ->persistFiltersInSession();   // mémorise les filtres choisis
+        ->persistFiltersInSession()  // mémorise les filtres choisis
 
+        // (optionnel) tri par défaut
+        ->defaultSort('pharmacy.name');
     }
 
     public static function getRelations(): array
