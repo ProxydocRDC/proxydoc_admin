@@ -1,38 +1,36 @@
 <?php
 namespace App\Filament\Resources;
 
-use Filament\Tables;
-use Filament\Forms\Form;
-use Filament\Tables\Table;
-use App\Models\ChemProduct;
+use App\Exports\ChemPharmacyProductsExport;
+use App\Filament\Resources\ChemPharmacyProductResource\Pages;
+use App\Imports\ChemPharmacyProductsImport;
 use App\Models\ChemPharmacy;
-use Filament\Resources\Resource;
-use Illuminate\Support\Facades\DB;
 use App\Models\ChemPharmacyProduct;
-use Filament\Tables\Actions\Action;
-use Filament\Forms\Components\Group;
-use Illuminate\Support\Facades\Auth;
-use Maatwebsite\Excel\Facades\Excel;
-use Filament\Forms\Components\Hidden;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Section;
-use Filament\Forms\Components\Textarea;
-use Filament\Tables\Columns\TextColumn;
-use Illuminate\Support\Facades\Storage;
-use Filament\Forms\Components\TextInput;
-use Filament\Notifications\Notification;
-use Filament\Tables\Columns\ImageColumn;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
-use Illuminate\Database\Eloquent\Builder;
-use App\Exports\ChemPharmacyProductsExport;
-use App\Imports\ChemPharmacyProductsImport;
-use Filament\Tables\Columns\Summarizers\Sum;
-use Filament\Tables\Columns\Summarizers\Count;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
-use App\Filament\Resources\ChemPharmacyProductResource\Pages;
+use Filament\Forms\Components\Group;
+use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Form;
 use Filament\Notifications\Actions\Action as NotificationAction;
+use Filament\Notifications\Notification;
+use Filament\Resources\Resource;
+use Filament\Tables;
+use Filament\Tables\Actions\Action;
+use Filament\Tables\Columns\Summarizers\Count;
+use Filament\Tables\Columns\Summarizers\Sum;
+use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Grouping\Group as groupingGroup;
+use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ChemPharmacyProductResource extends Resource
 {
@@ -146,82 +144,82 @@ class ChemPharmacyProductResource extends Resource
     {
         return $table
         // charge le nom de la pharmacie
-        ->modifyQueryUsing(fn ($query) => $query->with('pharmacy'))
-        // ✅ regroupe par pharmacie
-        ->groups([
-            groupingGroup::make('pharmacy.name')
-                ->label('Pharmacie')
-                ->collapsible(), // groupes pliables
-        ])
-        ->defaultGroup('pharmacy.name') // ouvre déjà groupé
-        ->columns([
-            TextColumn::make('pharmacy.name')->label('Pharmacie'), // apparait aussi dans l’entête de groupe
-            TextColumn::make('product.name')->label('Produit'),
-            TextColumn::make('stock_qty')->label('Stock')
+            ->modifyQueryUsing(fn($query) => $query->with('pharmacy'))
+            // ✅ regroupe par pharmacie
+            ->groups([
+                groupingGroup::make('pharmacy.name')
+                    ->label('Pharmacie')
+                    ->collapsible(), // groupes pliables
+            ])
+            ->defaultGroup('pharmacy.name') // ouvre déjà groupé
+            ->columns([
+                TextColumn::make('pharmacy.name')->label('Pharmacie'), // apparait aussi dans l’entête de groupe
+                TextColumn::make('product.name')->label('Produit'),
+                TextColumn::make('stock_qty')->label('Stock')
                 // Totaux par groupe (en bas du groupe)
-                ->summarize([
-                    Sum::make()->label('Stock total'),
-                ]),
-            TextColumn::make('id')
-                ->label('Lignes')
-                ->summarize([
-                    Count::make()->label('Produits (lignes)'),
-                ]),
-            // … autres colonnes …
-        ])
-        // ->columns([
-        //     // ImageColumn::make('image')
-        //     //     ->label('Image')
-        //     //     ->square()
-        //     //     ->size(50)
-        //     //     ->getStateUsing(fn($record) => $record->mediaUrl('image')) // URL finale
-        //     //     ->size(64)
-        //     //     ->square()
-        //     //     ->defaultImageUrl(asset('assets/images/default.jpg')) // 👈 évite l’icône cassée
-        //     //     ->openUrlInNewTab()
-        //     //     ->url(fn($record) => $record->mediaUrl('image', ttl: 5)), // clic = grande image,
-        //     // ImageColumn::make('image')
-        //     //     ->label('Image')
-        //     //     ->square()
-        //     //     ->size(64)
-        //     // // miniature signée (image propre si présente, sinon image du produit)
-        //     //     ->getStateUsing(fn($record) => $record->displayImageUrl(10))
-        //     //     ->defaultImageUrl(asset('assets/images/default.jpg'))
-        //     //     ->openUrlInNewTab()
-        //     // // clic : version avec TTL plus long
-        //     //     ->url(fn($record) => $record->displayImageUrl(60)),
+                    ->summarize([
+                        Sum::make()->label('Stock total'),
+                    ]),
+                TextColumn::make('id')
+                    ->label('Lignes')
+                    ->summarize([
+                        Count::make()->label('Produits (lignes)'),
+                    ]),
+                // … autres colonnes …
+            ])
+            // ->columns([
+            //     // ImageColumn::make('image')
+            //     //     ->label('Image')
+            //     //     ->square()
+            //     //     ->size(50)
+            //     //     ->getStateUsing(fn($record) => $record->mediaUrl('image')) // URL finale
+            //     //     ->size(64)
+            //     //     ->square()
+            //     //     ->defaultImageUrl(asset('assets/images/default.jpg')) // 👈 évite l’icône cassée
+            //     //     ->openUrlInNewTab()
+            //     //     ->url(fn($record) => $record->mediaUrl('image', ttl: 5)), // clic = grande image,
+            //     // ImageColumn::make('image')
+            //     //     ->label('Image')
+            //     //     ->square()
+            //     //     ->size(64)
+            //     // // miniature signée (image propre si présente, sinon image du produit)
+            //     //     ->getStateUsing(fn($record) => $record->displayImageUrl(10))
+            //     //     ->defaultImageUrl(asset('assets/images/default.jpg'))
+            //     //     ->openUrlInNewTab()
+            //     // // clic : version avec TTL plus long
+            //     //     ->url(fn($record) => $record->displayImageUrl(60)),
 
-        //     // TextColumn::make('pharmacy.name')
-        //     //     ->label('Pharmacie')
-        //     //     ->sortable()
-        //     //     ->searchable(),
+            //     // TextColumn::make('pharmacy.name')
+            //     //     ->label('Pharmacie')
+            //     //     ->sortable()
+            //     //     ->searchable(),
 
-        //     // TextColumn::make('product.name')
-        //     //     ->label('Produit')
-        //     //     ->sortable()
-        //     //     ->searchable(),
+            //     // TextColumn::make('product.name')
+            //     //     ->label('Produit')
+            //     //     ->sortable()
+            //     //     ->searchable(),
 
-        //     // TextColumn::make('lot_ref')
-        //     //     ->label('Lot Ref'),
+            //     // TextColumn::make('lot_ref')
+            //     //     ->label('Lot Ref'),
 
-        //     // TextColumn::make('origin_country')
-        //     //     ->label('Pays Origine'),
+            //     // TextColumn::make('origin_country')
+            //     //     ->label('Pays Origine'),
 
-        //     // TextColumn::make('expiry_date')
-        //     //     ->label('Expiration')
-        //     //     ->date('d/m/Y'),
+            //     // TextColumn::make('expiry_date')
+            //     //     ->label('Expiration')
+            //     //     ->date('d/m/Y'),
 
-        //     // TextColumn::make('sale_price')
-        //     //     ->label('Prix Vente')
-        //     //     ->money(fn($record) => $record->currency),
+            //     // TextColumn::make('sale_price')
+            //     //     ->label('Prix Vente')
+            //     //     ->money(fn($record) => $record->currency),
 
-        //     // TextColumn::make('stock_qty')
-        //     //     ->label('Stock'),
+            //     // TextColumn::make('stock_qty')
+            //     //     ->label('Stock'),
 
-        //     // TextColumn::make('created_by')
-        //     //     ->label('Créé par')
-        //     //     ->formatStateUsing(fn($state) => \App\Models\User::find($state)?->name ?? '—'),
-        // ])
+            //     // TextColumn::make('created_by')
+            //     //     ->label('Créé par')
+            //     //     ->formatStateUsing(fn($state) => \App\Models\User::find($state)?->name ?? '—'),
+            // ])
             ->defaultSort('id', 'desc')
             ->filters([])
             ->headerActions([
@@ -403,16 +401,31 @@ currency*(USD/CDF), stock_qty, reorder_level, image(clé S3), description.'
                             'image'          => $data['image'] ?? null,
                             'description'    => $data['description'] ?? null,
                             'created_by'     => $user?->id,
-                             'status'         => -1,
+                            'status'         => -1,
                             'created_at'     => now(),
                             'updated_at'     => now(),
                         ];
                         // 4) Insert groupé (si nécessaire)
                         if ($created > 0) {
-                            $rows = array_map(fn($pid) => ['product_id' => $pid] + $base, $toCreateIds);
+                            // $rows = array_map(fn($pid) => ['product_id' => $pid] + $base, $toCreateIds);
 
-                            DB::transaction(function () use ($rows) {
-                                \App\Models\ChemPharmacyProduct::query()->insert($rows);
+                            // DB::transaction(function () use ($rows) {
+                            //     \App\Models\ChemPharmacyProduct::query()->insert($rows);
+                            // });
+                            DB::transaction(function () use ($productIds, $base, &$created) {
+                                foreach ($productIds as $pid) {
+                                    $product = \App\Models\ChemProduct::find($pid);
+
+                                    // Prix de vente : si non saisi → on prend price_ref du produit
+                                    $salePrice = $base['sale_price'] ?? $product->price_ref;
+
+                                    \App\Models\ChemPharmacyProduct::create([
+                                        'product_id' => $pid,
+                                        'sale_price' => $salePrice,
+                                    ] + $base);
+
+                                    $created++;
+                                }
                             });
                         }
 
@@ -512,14 +525,24 @@ currency*(USD/CDF), stock_qty, reorder_level, image(clé S3), description.'
                             ->required()
                             ->searchable()
                             ->preload()
-                        // Astuce : utilisez une options() pour liberté totale (filtrages personnalisés)
-                            ->options(function () {
-                                // Vous pouvez filtrer par fournisseur ici si besoin, comme pour la pharmacie
-                                return ChemProduct::query()
+                            ->options(function (callable $get) {
+                                $pharmacyId = $get('pharmacy_id');
+                                if (! $pharmacyId) {
+                                    return [];
+                                }
+
+                                // IDs déjà affectés à cette pharmacie
+                                $alreadyAssigned = \App\Models\ChemPharmacyProduct::query()
+                                    ->where('pharmacy_id', $pharmacyId)
+                                    ->pluck('product_id');
+
+                                // On propose uniquement les produits pas encore affectés
+                                return \App\Models\ChemProduct::query()
+                                    ->whereNotIn('id', $alreadyAssigned)
                                     ->orderBy('name')
                                     ->pluck('name', 'id');
                             })
-                            ->helperText('Sélectionnez un ou plusieurs produits.'),
+                            ->helperText('Seuls les produits non encore affectés à cette pharmacie apparaissent.'),
                     ])
                     ->columns(1),
 
@@ -530,7 +553,7 @@ currency*(USD/CDF), stock_qty, reorder_level, image(clé S3), description.'
                         DatePicker::make('expiry_date')->label('Date d\'expiration'),
 
                         TextInput::make('cost_price')->label('Prix d\'achat')->numeric()->prefix('$'),
-                        TextInput::make('sale_price')->label('Prix de vente')->numeric()->prefix('$')->required(),
+                        TextInput::make('sale_price')->label('Prix de vente')->numeric()->prefix('$'),
 
                         Select::make('currency')->label('Devise')->options([
                             'USD' => 'USD - Dollar américain',
