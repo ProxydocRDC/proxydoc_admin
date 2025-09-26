@@ -1,10 +1,10 @@
 <?php
 namespace App\Models;
 
-use Illuminate\Support\Str;
 use App\Models\ChemPharmacyProduct;
 use App\Models\Concerns\HasS3MediaUrls;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 class ChemPharmacy extends Model
 {
@@ -15,22 +15,22 @@ class ChemPharmacy extends Model
     ];
 
     protected $casts = [
-        'status' => 'integer',
-    'rating'     => 'float',
-    'nb_review'  => 'int',
-    'created_at' => 'datetime',
-    'updated_at' => 'datetime',
-];
+        'status'     => 'integer',
+        'rating'     => 'float',
+        'nb_review'  => 'int',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+    ];
 
-  // Accessors pratiques :
+    // Accessors pratiques :
     public function getImageUrlAttribute(): ?string
     {
-        return $this->mediaUrl('image');       // <img src="{{ $category->image_url }}">
+        return $this->mediaUrl('image'); // <img src="{{ $category->image_url }}">
     }
 
     public function getImagesUrlsAttribute(): array
     {
-        return $this->mediaUrls('images');     // foreach ($model->images_urls as $url) ...
+        return $this->mediaUrls('images'); // foreach ($model->images_urls as $url) ...
     }
     // Pharmacie (lieu de vente de médicaments)
     public function products()
@@ -52,13 +52,18 @@ class ChemPharmacy extends Model
     public function orders()
     {return $this->hasMany(\App\Models\ChemOrder::class, 'pharmacy_id');}
 
-    function keyFromUrl(string $url): ?string {
-    $parts = parse_url($url);
-    $path  = isset($parts['path']) ? ltrim($parts['path'], '/') : null; // ex: "pharmacies/pharma5.jpeg" ou "proxydocfiles/pharmacies/..."
-    $bucket = config('filesystems.disks.s3.bucket');
-    if ($bucket && Str::startsWith($path, $bucket.'/')) {
-        $path = Str::after($path, $bucket.'/');
+    public function keyFromUrl(string $url): ?string
+    {
+        $parts  = parse_url($url);
+        $path   = isset($parts['path']) ? ltrim($parts['path'], '/') : null; // ex: "pharmacies/pharma5.jpeg" ou "proxydocfiles/pharmacies/..."
+        $bucket = config('filesystems.disks.s3.bucket');
+        if ($bucket && Str::startsWith($path, $bucket . '/')) {
+            $path = Str::after($path, $bucket . '/');
+        }
+        return $path ?: null;
     }
-    return $path ?: null;
+public function pharmacyProducts()
+{
+    return $this->hasMany(\App\Models\ChemPharmacyProduct::class, 'pharmacy_id');
 }
 }

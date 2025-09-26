@@ -509,4 +509,17 @@ class ChemOrderResource extends Resource
 
         return $candidate;
     }
+     public static function getNavigationBadge(): ?string
+    {
+        // total global de lignes “produit en pharmacie”
+
+        $base = ChemOrder::query();
+
+        return (string) $base->count();
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'warning'; // ou 'success', 'warning', etc.
+    }
 }

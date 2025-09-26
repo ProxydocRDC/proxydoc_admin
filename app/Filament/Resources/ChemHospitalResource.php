@@ -622,4 +622,17 @@ class ChemHospitalResource extends Resource
         }
         return $out;
     }
+     public static function getNavigationBadge(): ?string
+    {
+        // total global de lignes “produit en pharmacie”
+
+        $base = ChemHospital::query();
+
+        return (string) $base->count();
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'danger'; // ou 'success', 'warning', etc.
+    }
 }

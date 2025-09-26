@@ -194,6 +194,11 @@ class ChemPharmacyResource extends Resource
                     ->label('Nom')
                     ->sortable()
                     ->searchable(),
+TextColumn::make('pharmacy_products_count')   // ✅ snake_case
+    ->label('Produits')
+    ->counts('pharmacyProducts')              // génère le withCount
+    ->badge()
+    ->sortable(),
 
                 TextColumn::make('phone')->label('Téléphone'),
                 TextColumn::make('email')->label('Email'),
@@ -453,6 +458,24 @@ supplier_id (id) OU supplier_name (nom), user_id (id) OU user_email (email) OU u
         }
 
         return $data;
+    }
+       public static function getNavigationBadge(): ?string
+    {
+        // total global de lignes “produit en pharmacie”
+        $u    = Auth::user();
+        $base = ChemPharmacy::query();
+
+        if (! $u?->hasRole('super_admin')) {
+            $sid = $u?->supplier?->id ?? 0;
+            $base->where('supplier_id', $sid);
+        }
+
+        return (string) $base->count();
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'warning'; // ou 'success', 'warning', etc.
     }
 
 }

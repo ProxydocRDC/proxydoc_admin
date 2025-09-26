@@ -130,4 +130,15 @@ class ChemPharmaceuticalFormResource extends Resource
         $data['updated_by'] = Auth::id();
         return $data;
     }
+    public static function getNavigationBadge(): ?string
+    {
+        // total global de lignes “forme galénique”
+        $base = ChemPharmaceuticalForm::query();
+
+        return (string) $base->count();
+    }
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'warning'; // ou 'success', 'warning', etc.
+    }
 }

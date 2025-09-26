@@ -75,4 +75,17 @@ class SubscriptionInviteResource extends \Filament\Resources\Resource
             'edit'   => Pages\EditSubscriptionInvite::route('/{record}/edit'),
         ];
     }
+     public static function getNavigationBadge(): ?string
+    {
+
+        $base = SubscriptionInvite::query();
+
+
+        return (string) $base->count();
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'success'; // ou 'success', 'warning', etc.
+    }
 }

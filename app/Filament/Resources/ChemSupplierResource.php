@@ -218,4 +218,18 @@ class ChemSupplierResource extends Resource
             'edit'   => Pages\EditChemSupplier::route('/{record}/edit'),
         ];
     }
+     public static function getNavigationBadge(): ?string
+    {
+        // total global de lignes “produit en pharmacie”
+
+        $base = ChemSupplier::query();
+
+
+        return (string) $base->count();
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'success'; // ou 'success', 'warning', etc.
+    }
 }

@@ -285,4 +285,17 @@ class UserResource extends Resource
             'edit'   => Pages\EditUser::route('/{record}/edit'),
         ];
     }
+     public static function getNavigationBadge(): ?string
+    {
+
+        $base = User::query();
+
+
+        return (string) $base->count();
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'danger'; // ou 'success', 'warning', etc.
+    }
 }

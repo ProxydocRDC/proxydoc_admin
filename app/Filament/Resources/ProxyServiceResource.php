@@ -139,4 +139,17 @@ class ProxyServiceResource extends Resource
         $data['updated_by'] = Auth::id();
         return $data;
     }
+     public static function getNavigationBadge(): ?string
+    {
+
+        $base = ProxyService::query();
+
+
+        return (string) $base->count();
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'Success'; // ou 'success', 'warning', etc.
+    }
 }

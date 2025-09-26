@@ -217,7 +217,19 @@ class ProxyDoctorResource extends Resource
         'edit'   => Pages\EditProxyDoctor::route('/{record}/edit'),
     ];
 }
+ public static function getNavigationBadge(): ?string
+    {
 
+        $base = ProxyDoctor::query();
+
+
+        return (string) $base->count();
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'success'; // ou 'success', 'warning', etc.
+    }
 
     // Hooks pour created_by / updated_by
     public static function mutateFormDataBeforeCreate(array $data): array

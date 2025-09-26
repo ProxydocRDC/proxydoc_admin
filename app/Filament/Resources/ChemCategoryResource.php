@@ -337,4 +337,17 @@ class ChemCategoryResource extends Resource
             'edit'   => Pages\EditChemCategory::route('/{record}/edit'),
         ];
     }
+     public static function getNavigationBadge(): ?string
+    {
+
+        $base = ChemCategory::query();
+
+
+        return (string) $base->count();
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'warning'; // ou 'success', 'warning', etc.
+    }
 }

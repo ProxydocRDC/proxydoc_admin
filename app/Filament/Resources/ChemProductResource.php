@@ -601,4 +601,16 @@ Optionnels : category_code, manufacturer_name, form_name, sku, barcode, strength
             'edit'   => Pages\EditChemProduct::route('/{record}/edit'),
         ];
     }
+     public static function getNavigationBadge(): ?string
+    {
+
+        $base = ChemProduct::query();
+
+        return (string) $base->count();
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'warning'; // ou 'success', 'warning', etc.
+    }
 }
