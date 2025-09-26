@@ -216,10 +216,13 @@ public function onRow(Row $row): void
     ];
 
     // 6) Upsert simple par (name + brand_name) — change le critère si nécessaire
-    DB::transaction(function () use ($payload, $name, $brandName) {
+    DB::transaction(function () use ($payload, $name, $brandName,$manufacturerId,$formId,$categoryId  ) {
         $existing = ChemProduct::query()
             ->where('name', $name)
             ->where('brand_name', $brandName)
+            ->where('manufacturer_id', $manufacturerId)
+            ->where('form_id', $formId)
+            ->where('category_id', $categoryId)
             ->first();
 
         if ($existing) {

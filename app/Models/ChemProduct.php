@@ -24,7 +24,7 @@ class ChemProduct extends Model
     public function getImagesUrlsAttribute(): array
     {
         return $this->mediaUrls('images');     // foreach ($model->images_urls as $url) ...
-    } 
+    }
      /** Retourne toutes les URLs (tableau), en filtrant les vides */
     public function imageUrls(): array
     {
@@ -41,7 +41,7 @@ class ChemProduct extends Model
         $urls = $this->imageUrls();
         return $urls[0] ?? null;
     }
-    
+
      protected function keyFromUrl(string $url): ?string
     {
         $parts = parse_url($url);
@@ -117,7 +117,7 @@ class ChemProduct extends Model
         return $all[0] ?? null;
         // return $all[0] ?? null;
     }
-    
+
     protected $guarded = [];
     protected $casts = [
         "images"=>"array",
