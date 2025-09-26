@@ -150,6 +150,6 @@ class ProxyServiceResource extends Resource
 
     public static function getNavigationBadgeColor(): ?string
     {
-        return 'Success'; // ou 'success', 'warning', etc.
+        return 'success'; // ou 'success', 'warning', etc.
     }
 }

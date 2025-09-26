@@ -146,99 +146,155 @@ class ChemPharmacyProductResource extends Resource
     {
         return $table
         // charge le nom de la pharmacie
-            ->modifyQueryUsing(fn($query) => $query->with(['pharmacy','product']))
-            // ✅ regroupe par pharmacie
-            ->groups([
-                groupingGroup::make('pharmacy.name')
-                    ->label('Pharmacie')
-                    ->collapsible(), // groupes pliables
-            ])
-            ->defaultGroup('pharmacy.name') // ouvre déjà groupé
-              // 🔎 Recherche globale & par colonne
-        ->persistSearchInSession()           // mémorise la recherche globale
-        ->persistColumnSearchesInSession()   // mémorise les recherches par colonne
-            ->columns([
-                TextColumn::make('pharmacy.name')->label('Pharmacie')
-                 ->searchable(isIndividual: true, isGlobal: true) // colonne & global
-                ->sortable(), // apparait aussi dans l’entête de groupe
-                TextColumn::make('product.name')->label('Produit')
+        //     ->modifyQueryUsing(fn($query) => $query->with(['pharmacy','product']))
+        //     // ✅ regroupe par pharmacie
+        //     ->groups([
+        //         groupingGroup::make('pharmacy.name')
+        //             ->label('Pharmacie')
+        //             ->collapsible(), // groupes pliables
+        //     ])
+        //     ->defaultGroup('pharmacy.name') // ouvre déjà groupé
+        //       // 🔎 Recherche globale & par colonne
+        // ->persistSearchInSession()           // mémorise la recherche globale
+        // ->persistColumnSearchesInSession()   // mémorise les recherches par colonne
+        //     ->columns([
+        //         TextColumn::make('pharmacy.name')->label('Pharmacie')
+        //          ->searchable(isIndividual: true, isGlobal: true) // colonne & global
+        //         ->sortable(), // apparait aussi dans l’entête de groupe
+        //         TextColumn::make('product.name')->label('Produit')
+        //         ->searchable(isIndividual: true, isGlobal: true)
+        //         ->sortable(),
+        //         TextColumn::make('stock_qty')->label('Stock')
+        //         // Totaux par groupe (en bas du groupe)
+        //             ->summarize([
+        //                 Sum::make()->label('Stock total'),
+        //             ]),
+        //             TextColumn::make('lot_ref')
+        //         ->label('Lot')
+        //         ->searchable(isIndividual: true, isGlobal: true),
+        //           TextColumn::make('sale_price')
+        //         ->label('Prix vente')
+        //         ->money('USD', true) // adapte devise si besoin
+        //         ->sortable(),
+        //         TextColumn::make('id')
+        //             ->label('Lignes')
+        //             ->summarize([
+        //                 Count::make()->label('Produits (lignes)'),
+        //             ]),
+        //         // … autres colonnes …
+        //     ])
+            // ->columns([
+            //     // ImageColumn::make('image')
+            //     //     ->label('Image')
+            //     //     ->square()
+            //     //     ->size(50)
+            //     //     ->getStateUsing(fn($record) => $record->mediaUrl('image')) // URL finale
+            //     //     ->size(64)
+            //     //     ->square()
+            //     //     ->defaultImageUrl(asset('assets/images/default.jpg')) // 👈 évite l’icône cassée
+            //     //     ->openUrlInNewTab()
+            //     //     ->url(fn($record) => $record->mediaUrl('image', ttl: 5)), // clic = grande image,
+            //     // ImageColumn::make('image')
+            //     //     ->label('Image')
+            //     //     ->square()
+            //     //     ->size(64)
+            //     // // miniature signée (image propre si présente, sinon image du produit)
+            //     //     ->getStateUsing(fn($record) => $record->displayImageUrl(10))
+            //     //     ->defaultImageUrl(asset('assets/images/default.jpg'))
+            //     //     ->openUrlInNewTab()
+            //     // // clic : version avec TTL plus long
+            //     //     ->url(fn($record) => $record->displayImageUrl(60)),
+
+            //     // TextColumn::make('pharmacy.name')
+            //     //     ->label('Pharmacie')
+            //     //     ->sortable()
+            //     //     ->searchable(),
+
+            //     // TextColumn::make('product.name')
+            //     //     ->label('Produit')
+            //     //     ->sortable()
+            //     //     ->searchable(),
+
+            //     // TextColumn::make('lot_ref')
+            //     //     ->label('Lot Ref'),
+
+            //     // TextColumn::make('origin_country')
+            //     //     ->label('Pays Origine'),
+
+            //     // TextColumn::make('expiry_date')
+            //     //     ->label('Expiration')
+            //     //     ->date('d/m/Y'),
+
+            //     // TextColumn::make('sale_price')
+            //     //     ->label('Prix Vente')
+            //     //     ->money(fn($record) => $record->currency),
+
+            //     // TextColumn::make('stock_qty')
+            //     //     ->label('Stock'),
+
+            //     // TextColumn::make('created_by')
+            //     //     ->label('Créé par')
+            //     //     ->formatStateUsing(fn($state) => \App\Models\User::find($state)?->name ?? '—'),
+            // ])
+            ->defaultSort('id', 'desc')
+          // On précharge la pharmacie + ses agrégats pour construire le label du groupe
+        ->modifyQueryUsing(fn ($query) => $query->with(['pharmacy', 'product']))
+        ->groups([
+            groupingGroup::make('pharmacy_id')->label('Pharmacie')->collapsible(),
+        ])
+        ->defaultGroup('pharmacy_id')          // ✅ OK
+        ->defaultSort('pharmacy_id')           // ✅ pas de colonne relationnelle ici
+
+        // ✅ Groupement par pharmacie avec entête custom
+        ->groups([
+            groupingGroup::make('pharmacy_id')
+                ->label('Pharmacie')
+                ->getTitleFromRecordUsing(function ($record) {
+                    $p      = $record->pharmacy;
+                    $name   = $p?->name ?? '—';
+                    $count  = (int) ($p?->pharmacy_products_count ?? 0);
+                    $stock  = (int) ($p?->pharmacy_products_sum_stock_qty ?? 0);
+
+                    // Formatage gentil (espaces comme séparateurs de milliers)
+                    $stockFmt = number_format($stock, 0, ',', ' ');
+
+                    return "Pharmacie : {$name} ({$count} produits, Stock total : {$stockFmt})";
+                })
+                ->collapsible(),
+        ])
+        ->defaultGroup('pharmacy_id')
+
+        // Colonnes (exemple)
+        ->columns([
+            TextColumn::make('product.name')->label('Produit')
                 ->searchable(isIndividual: true, isGlobal: true)
                 ->sortable(),
-                TextColumn::make('stock_qty')->label('Stock')
-                // Totaux par groupe (en bas du groupe)
-                    ->summarize([
-                        Sum::make()->label('Stock total'),
-                    ]),
-                    TextColumn::make('lot_ref')
+
+            TextColumn::make('stock_qty')->label('Stock')
+                ->sortable()
+                ->summarize([
+                    Sum::make()->label('Stock total'),
+                ]),
+        TextColumn::make('lot_ref')
                 ->label('Lot')
                 ->searchable(isIndividual: true, isGlobal: true),
-                  TextColumn::make('sale_price')
+
+            TextColumn::make('sale_price')
                 ->label('Prix vente')
                 ->money('USD', true) // adapte devise si besoin
                 ->sortable(),
-                TextColumn::make('id')
-                    ->label('Lignes')
-                    ->summarize([
-                        Count::make()->label('Produits (lignes)'),
-                    ]),
-                // … autres colonnes …
-            ])
-            ->columns([
-                // ImageColumn::make('image')
-                //     ->label('Image')
-                //     ->square()
-                //     ->size(50)
-                //     ->getStateUsing(fn($record) => $record->mediaUrl('image')) // URL finale
-                //     ->size(64)
-                //     ->square()
-                //     ->defaultImageUrl(asset('assets/images/default.jpg')) // 👈 évite l’icône cassée
-                //     ->openUrlInNewTab()
-                //     ->url(fn($record) => $record->mediaUrl('image', ttl: 5)), // clic = grande image,
-                // ImageColumn::make('image')
-                //     ->label('Image')
-                //     ->square()
-                //     ->size(64)
-                // // miniature signée (image propre si présente, sinon image du produit)
-                //     ->getStateUsing(fn($record) => $record->displayImageUrl(10))
-                //     ->defaultImageUrl(asset('assets/images/default.jpg'))
-                //     ->openUrlInNewTab()
-                // // clic : version avec TTL plus long
-                //     ->url(fn($record) => $record->displayImageUrl(60)),
-
-                // TextColumn::make('pharmacy.name')
-                //     ->label('Pharmacie')
-                //     ->sortable()
-                //     ->searchable(),
-
-                // TextColumn::make('product.name')
-                //     ->label('Produit')
-                //     ->sortable()
-                //     ->searchable(),
-
-                // TextColumn::make('lot_ref')
-                //     ->label('Lot Ref'),
-
-                // TextColumn::make('origin_country')
-                //     ->label('Pays Origine'),
-
-                // TextColumn::make('expiry_date')
-                //     ->label('Expiration')
-                //     ->date('d/m/Y'),
-
-                // TextColumn::make('sale_price')
-                //     ->label('Prix Vente')
-                //     ->money(fn($record) => $record->currency),
-
-                // TextColumn::make('stock_qty')
-                //     ->label('Stock'),
-
-                // TextColumn::make('created_by')
-                //     ->label('Créé par')
-                //     ->formatStateUsing(fn($state) => \App\Models\User::find($state)?->name ?? '—'),
-            ])
-            ->defaultSort('id', 'desc')
-
-
+            // Un compteur de lignes au pied de groupe/table (optionnel)
+            TextColumn::make('id')
+                ->label('Lignes')
+                ->summarize([
+                    Count::make()->label('Produits (lignes)'),
+                ]),
+                TextColumn::make('description')
+                ->label('Description')
+                ->toggleable()
+                ->limit(50)
+                ->searchable(isIndividual: true, isGlobal: true),
+        ])
             ->filters([
                  // Filtre par pharmacie
             SelectFilter::make('pharmacy_id')
@@ -508,10 +564,8 @@ currency*(USD/CDF), stock_qty, reorder_level, image(clé S3), description.'
             ->bulkActions([
                 Tables\Actions\DeleteBulkAction::make()->label('Supprimer sélection'),
             ])->filtersFormColumns(2)
-        ->persistFiltersInSession()   // mémorise les filtres choisis
+        ->persistFiltersInSession();   // mémorise les filtres choisis
 
-        // (optionnel) tri par défaut
-        ->defaultSort('pharmacy.name');
     }
 
     public static function getRelations(): array
