@@ -163,11 +163,9 @@ class UserResource extends Resource
                 ImageColumn::make('Profile')
                     ->label('Profile')
                 // renvoie un ARRAY d’URLs pour l’affichage empilé
-                    ->getStateUsing(fn($record) => $record->mediaUrls('profile'))
-                    ->defaultImageUrl(asset('images/PROFI-TIK.jpg'))
+                    ->getStateUsing(fn($record) => $record->mediaUrl('profile'))
+                    ->defaultImageUrl(asset('assets/images/default.jpg'))
                     ->circular()
-                    ->stacked()
-                    ->limit(2)
                     ->toggleable(isToggledHiddenByDefault: true)
                     ->limitedRemainingText()
                     ->height(44),

@@ -1,6 +1,7 @@
 <?php
 namespace App\Filament\Resources;
 
+use App\Models\User;
 use Filament\Tables;
 use Filament\Forms\Form;
 use Filament\Tables\Table;
