@@ -219,6 +219,17 @@ class UserResource extends Resource
                         'warning' => 'utilisateur',
                         'gray'    => 'invité',
                     ]),
+                    TextColumn::make('default_role')
+    ->label('Rôle par défaut')
+    ->formatStateUsing(fn ($state) => [1=>'Activé',2=>'Docteur',3=>'Livreur',4=>'Supprimé'][$state] ?? '—')
+    ->badge()
+    ->colors([
+        'success' => fn ($state) => (int)$state === 1,
+        'info'    => fn ($state) => (int)$state === 2,
+        'warning' => fn ($state) => (int)$state === 3,
+        'danger'  => fn ($state) => (int)$state === 4,
+    ])
+    ->sortable(),
                 TextColumn::make('username')
                     ->label('Nom d’utilisateur')
                     ->toggleable(isToggledHiddenByDefault: true)
