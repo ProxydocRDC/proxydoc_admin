@@ -127,8 +127,7 @@ class UserResource extends Resource
                             ->columnSpan(6),
                         FileUpload::make('profile')
                             ->label('Photo de profil')
-                            ->multiple()
-                            ->directory('hospitals/profile')
+                            ->directory('uploads/images/profiles')
                             ->disk('s3')
                             ->visibility('private')
                             ->columnSpan(12),
@@ -160,15 +159,12 @@ class UserResource extends Resource
                 //     ->label('Profil')
                 //     ->toggleable(isToggledHiddenByDefault: true)
                 //     ->searchable(),
-                ImageColumn::make('Profile')
-                    ->label('Profile')
-                // renvoie un ARRAY d’URLs pour l’affichage empilé
-                    ->getStateUsing(fn($record) => $record->mediaUrl('profile'))
-                    ->defaultImageUrl(asset('assets/images/default.jpg'))
-                    ->circular()
-                    ->toggleable(isToggledHiddenByDefault: true)
-                    ->limitedRemainingText()
-                    ->height(44),
+               ImageColumn::make('profile')
+    ->label('Profil')
+    ->getStateUsing(fn ($record) => $record->profile_url) // ← l’URL signée
+    ->defaultImageUrl(asset('assets/images/default.jpg'))
+    ->circular()
+    ->height(44),
                 TextColumn::make('firstname')
                     ->label('Prénom')
                     ->searchable(),

@@ -2,16 +2,17 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Filament\Panel;
 use App\Models\MainTenant;
 use App\Models\MainUserAddress;
-use Filament\Models\Contracts\FilamentUser;
 use Filament\Models\Contracts\HasName;
-use Filament\Panel;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 use App\Models\Concerns\HasS3MediaUrls;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Notifications\Notifiable;
+use Filament\Models\Contracts\FilamentUser;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Foundation\Auth\User as Authenticatable;
 
 class User extends Authenticatable implements FilamentUser, HasName
 {
@@ -151,11 +152,21 @@ class User extends Authenticatable implements FilamentUser, HasName
     }
 public function getImageUrlAttribute(): ?string
     {
-        return $this->mediaUrl('profile');       // <img src="{{ $category->image_url }}">
+        return $this->mediaUrl('profiles');       // <img src="{{ $category->image_url }}">
     }
 
     public function getImagesUrlsAttribute(): array
     {
         return $this->mediaUrls('profile');     // foreach ($model->images_urls as $url) ...
     }
+    public function getProfileUrlAttribute(): ?string
+{
+    $path = $this->profile; // colonne qui contient le chemin S3 (string)
+    if (empty($path)) {
+        return null;
+    }
+
+    // URL signée valable 10 minutes (ajuste si besoin)
+    return Storage::disk('s3')->temporaryUrl($path, now()->addMinutes(10));
+}
 }
