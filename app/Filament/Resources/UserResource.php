@@ -3,6 +3,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\UserResource\Pages;
 use App\Models\User;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Group;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Section;
@@ -17,6 +18,7 @@ use Filament\Resources\Pages\EditRecord;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Actions\ActionGroup;
+use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\SelectColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -123,7 +125,13 @@ class UserResource extends Resource
                                 $set('default_role', $state[0] ?? null);
                             })
                             ->columnSpan(6),
-
+                        FileUpload::make('profile')
+                            ->label('Photo de profil')
+                            ->multiple()
+                            ->directory('hospitals/profile')
+                            ->disk('s3')
+                            ->visibility('private')
+                            ->columnSpan(12),
 // Champ caché pour stocker l'ID du rôle par défaut
                         Hidden::make('default_role')
                             ->dehydrated(true) // envoyer en base
@@ -148,10 +156,21 @@ class UserResource extends Resource
     {
         return $table
             ->columns([
-                TextColumn::make('profile')
-                    ->label('Profil')
+                // TextColumn::make('profile')
+                //     ->label('Profil')
+                //     ->toggleable(isToggledHiddenByDefault: true)
+                //     ->searchable(),
+                ImageColumn::make('Profile')
+                    ->label('Profile')
+                // renvoie un ARRAY d’URLs pour l’affichage empilé
+                    ->getStateUsing(fn($record) => $record->mediaUrls('profile'))
+                    ->defaultImageUrl(asset('images/PROFI-TIK.jpg'))
+                    ->circular()
+                    ->stacked()
+                    ->limit(2)
                     ->toggleable(isToggledHiddenByDefault: true)
-                    ->searchable(),
+                    ->limitedRemainingText()
+                    ->height(44),
                 TextColumn::make('firstname')
                     ->label('Prénom')
                     ->searchable(),
@@ -285,11 +304,10 @@ class UserResource extends Resource
             'edit'   => Pages\EditUser::route('/{record}/edit'),
         ];
     }
-     public static function getNavigationBadge(): ?string
+    public static function getNavigationBadge(): ?string
     {
 
         $base = User::query();
-
 
         return (string) $base->count();
     }

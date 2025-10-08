@@ -11,11 +11,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
+use App\Models\Concerns\HasS3MediaUrls;
 
 class User extends Authenticatable implements FilamentUser, HasName
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasRoles;
+    use HasFactory, Notifiable, HasRoles,HasS3MediaUrls;
     public const ROLE_DOCTOR  = 2;
     public const ROLE_PATIENT = 5;
     /**
@@ -148,5 +149,13 @@ class User extends Authenticatable implements FilamentUser, HasName
             'id'
         );
     }
+public function getImageUrlAttribute(): ?string
+    {
+        return $this->mediaUrl('profile');       // <img src="{{ $category->image_url }}">
+    }
 
+    public function getImagesUrlsAttribute(): array
+    {
+        return $this->mediaUrls('profile');     // foreach ($model->images_urls as $url) ...
+    }
 }
