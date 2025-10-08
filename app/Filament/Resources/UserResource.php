@@ -9,12 +9,14 @@ use Filament\Forms\Form;
 use Filament\Tables\Table;
 use Illuminate\Support\Str;
 use Filament\Resources\Resource;
+use Filament\Tables\Actions\Action;
 use Filament\Forms\Components\Group;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Section;
+use Filament\Tables\Actions\BulkAction;
 use Filament\Tables\Columns\TextColumn;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rules\Unique;
@@ -27,7 +29,6 @@ use Filament\Forms\Components\FileUpload;
 use Filament\Tables\Columns\SelectColumn;
 use Filament\Resources\Pages\CreateRecord;
 use App\Filament\Resources\UserResource\Pages;
-use Filament\Tables\Actions\Action;
 use Illuminate\Validation\Rules\Password as PasswordRule;
 
 class UserResource extends Resource
@@ -331,6 +332,65 @@ class UserResource extends Resource
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
+                    BulkAction::make('clearProfileBulk')
+    ->label('Supprimer photos de profil (en masse)')
+    ->icon('heroicon-m-user-minus')
+    ->color('warning')
+    ->deselectRecordsAfterCompletion()
+    ->form([
+        \Filament\Forms\Components\Toggle::make('delete_s3')
+            ->label('Supprimer aussi les fichiers S3')
+            ->helperText('Sinon, seules les références en base seront vidées.')
+            ->default(false),
+    ])
+    ->action(function (array $data, $records) {
+        $totalRecords      = 0;
+        $totalFilesDeleted = 0;
+
+        $deleteOnS3 = ! empty($data['delete_s3']);
+        $disk       = Storage::disk('s3');
+
+        foreach ($records as $record) {
+            $totalRecords++;
+
+            // Récupère la clé/URL stockée (string)
+            $key = (string) ($record->profile ?? '');
+
+            if ($deleteOnS3 && $key !== '') {
+                // si on a une URL complète, extraire le path
+                if (preg_match('#^https?://#i', $key)) {
+                    $key = ltrim(parse_url($key, PHP_URL_PATH) ?? '', '/');
+                } else {
+                    $key = ltrim($key, '/');
+                }
+
+                // retirer le préfixe "<bucket>/" si présent
+                $bucket = config('filesystems.disks.s3.bucket');
+                if ($bucket && Str::startsWith($key, $bucket . '/')) {
+                    $key = substr($key, strlen($bucket) + 1);
+                }
+
+                try {
+                    if ($key) {
+                        $disk->delete($key);
+                        $totalFilesDeleted++;
+                    }
+                } catch (\Throwable $e) {
+                    // on ignore et on continue
+                }
+            }
+
+            // Vider la colonne en base
+            $record->profile = null; // ou '' si tu préfères
+            $record->save();
+        }
+
+        Notification::make()
+            ->title('Photos de profil supprimées')
+            ->body("Enregistrements traités : {$totalRecords}. Fichiers S3 supprimés : {$totalFilesDeleted}.")
+            ->success()
+            ->send();
+    }),
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
