@@ -1,31 +1,34 @@
 <?php
 namespace App\Filament\Resources;
 
-use App\Filament\Resources\UserResource\Pages;
 use App\Models\User;
-use Filament\Forms\Components\FileUpload;
-use Filament\Forms\Components\Group;
-use Filament\Forms\Components\Hidden;
-use Filament\Forms\Components\Section;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Form;
+use Filament\Tables;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
-use Filament\Notifications\Notification;
-use Filament\Resources\Pages\CreateRecord;
-use Filament\Resources\Pages\EditRecord;
-use Filament\Resources\Resource;
-use Filament\Tables;
-use Filament\Tables\Actions\ActionGroup;
-use Filament\Tables\Columns\ImageColumn;
-use Filament\Tables\Columns\SelectColumn;
-use Filament\Tables\Columns\TextColumn;
+use Filament\Forms\Form;
 use Filament\Tables\Table;
+use Illuminate\Support\Str;
+use Filament\Resources\Resource;
+use Filament\Forms\Components\Group;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules\Password as PasswordRule;
+use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Section;
+use Filament\Tables\Columns\TextColumn;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rules\Unique;
+use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
+use Filament\Resources\Pages\EditRecord;
+use Filament\Tables\Actions\ActionGroup;
+use Filament\Tables\Columns\ImageColumn;
+use Filament\Forms\Components\FileUpload;
+use Filament\Tables\Columns\SelectColumn;
+use Filament\Resources\Pages\CreateRecord;
+use App\Filament\Resources\UserResource\Pages;
+use Filament\Tables\Actions\Action;
+use Illuminate\Validation\Rules\Password as PasswordRule;
 
 class UserResource extends Resource
 {
@@ -267,6 +270,60 @@ class UserResource extends Resource
             ])
             ->actions([
                 ActionGroup::make([
+                     Action::make('clearProfile')
+    ->label('Supprimer la photo')
+    ->icon('heroicon-m-user-minus')
+    ->color('warning')
+    ->visible(fn ($record) => filled($record->profile)) // une seule image
+    ->form([
+        \Filament\Forms\Components\Toggle::make('delete_s3')
+            ->label('Supprimer aussi le fichier S3')
+            ->helperText('Sinon, seule la référence en base sera vidée.')
+            ->default(false),
+    ])
+    ->requiresConfirmation()
+    ->action(function (array $data, $record) {
+        $deleted = 0;
+
+        // Récupère la clé/chemin S3 stocké en base (string)
+        $key = (string) $record->profile;
+
+        if (! empty($data['delete_s3']) && $key) {
+            $disk = Storage::disk('s3');
+
+            // Si on a reçu une URL complète, on en extrait le path
+            if (preg_match('#^https?://#i', $key)) {
+                $key = ltrim(parse_url($key, PHP_URL_PATH) ?? '', '/');
+            } else {
+                $key = ltrim($key, '/');
+            }
+
+            // Retire le préfixe bucket/… si présent
+            $bucket = config('filesystems.disks.s3.bucket');
+            if ($bucket && Str::startsWith($key, $bucket . '/')) {
+                $key = substr($key, strlen($bucket) + 1);
+            }
+
+            try {
+                if ($key) {
+                    $disk->delete($key);
+                    $deleted = 1;
+                }
+            } catch (\Throwable $e) {
+                // on ignore l’erreur S3 ici, on continue à vider la base
+            }
+        }
+
+        // Vider la colonne en base (NULL ou '' selon ta préférence)
+        $record->profile = null; // ou '' si tu préfères
+        $record->save();
+
+        Notification::make()
+            ->title('Photo de profil supprimée')
+            ->body(($deleted ? "Fichier S3 supprimé.\n" : '') . 'Le champ "profile" a été vidé.')
+            ->success()
+            ->send();
+    }),
                     Tables\Actions\ViewAction::make(),
                     Tables\Actions\EditAction::make(),
                     Tables\Actions\DeleteAction::make(),
