@@ -623,57 +623,65 @@ Optionnels : category_code, manufacturer_name, form_name, sku, barcode, strength
         ])
             ->bulkActions([
                 // … tes autres bulk actions
-                BulkAction::make('clearImagesBulk')
-                    ->label('Vider images (en masse)')
-                    ->icon('heroicon-m-photo')
-                    ->color('warning')
-                    ->deselectRecordsAfterCompletion()
-                    ->form([
-                        \Filament\Forms\Components\Toggle::make('delete_s3')
-                            ->label('Supprimer aussi les fichiers S3')
-                            ->default(false),
-                    ])
-                    ->action(function (array $data, $records) {
-                        $disk              = Storage::disk('s3');
-                        $totalRecords      = 0;
-                        $totalFilesDeleted = 0;
+               BulkAction::make('clearProfileBulk')
+    ->label('Supprimer photos de profil (en masse)')
+    ->icon('heroicon-m-user-minus')
+    ->color('warning')
+    ->deselectRecordsAfterCompletion()
+    ->form([
+        \Filament\Forms\Components\Toggle::make('delete_s3')
+            ->label('Supprimer aussi les fichiers S3')
+            ->helperText('Sinon, seules les références en base seront vidées.')
+            ->default(false),
+    ])
+    ->action(function (array $data, $records) {
+        $totalRecords      = 0;
+        $totalFilesDeleted = 0;
 
-                        foreach ($records as $record) {
-                            $totalRecords++;
-                            $keys = is_array($record->images) ? $record->images : [];
+        $deleteOnS3 = ! empty($data['delete_s3']);
+        $disk       = Storage::disk('s3');
 
-                            if (! empty($data['delete_s3']) && $keys) {
-                                foreach ($keys as $k) {
-                                    $key = preg_match('#^https?://#i', (string) $k)
-                                        ? ltrim(parse_url($k, PHP_URL_PATH) ?? '', '/')
-                                        : ltrim((string) $k, '/');
+        foreach ($records as $record) {
+            $totalRecords++;
 
-                                    $bucket = config('filesystems.disks.s3.bucket');
-                                    if ($bucket && Str::startsWith($key, $bucket . '/')) {
-                                        $key = substr($key, strlen($bucket) + 1);
-                                    }
+            // Récupère la clé/URL stockée (string)
+            $key = (string) ($record->profile ?? '');
 
-                                    try {
-                                        if ($key) {
-                                            $disk->delete($key);
-                                            $totalFilesDeleted++;
-                                        }
-                                    } catch (\Throwable $e) {
-                                        // on ignore, on continue sur les autres
-                                    }
-                                }
-                            }
+            if ($deleteOnS3 && $key !== '') {
+                // si on a une URL complète, extraire le path
+                if (preg_match('#^https?://#i', $key)) {
+                    $key = ltrim(parse_url($key, PHP_URL_PATH) ?? '', '/');
+                } else {
+                    $key = ltrim($key, '/');
+                }
 
-                            $record->images = [];
-                            $record->save();
-                        }
+                // retirer le préfixe "<bucket>/" si présent
+                $bucket = config('filesystems.disks.s3.bucket');
+                if ($bucket && Str::startsWith($key, $bucket . '/')) {
+                    $key = substr($key, strlen($bucket) + 1);
+                }
 
-                        Notification::make()
-                            ->title('Images vidées')
-                            ->body("Produits traités: {$totalRecords}. Fichiers S3 supprimés: {$totalFilesDeleted}.")
-                            ->success()
-                            ->send();
-                    }),
+                try {
+                    if ($key) {
+                        $disk->delete($key);
+                        $totalFilesDeleted++;
+                    }
+                } catch (\Throwable $e) {
+                    // on ignore et on continue
+                }
+            }
+
+            // Vider la colonne en base
+            $record->profile = null; // ou '' si tu préfères
+            $record->save();
+        }
+
+        Notification::make()
+            ->title('Photos de profil supprimées')
+            ->body("Enregistrements traités : {$totalRecords}. Fichiers S3 supprimés : {$totalFilesDeleted}.")
+            ->success()
+            ->send();
+    }),
                 Tables\Actions\DeleteBulkAction::make()->label('Supprimer la sélection'),
             ]);
     }
