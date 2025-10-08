@@ -27,6 +27,7 @@ use Filament\Tables\Actions\ActionGroup;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Forms\Components\FileUpload;
 use Filament\Tables\Columns\SelectColumn;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Resources\Pages\CreateRecord;
 use App\Filament\Resources\UserResource\Pages;
 use Illuminate\Validation\Rules\Password as PasswordRule;
@@ -157,18 +158,24 @@ class UserResource extends Resource
 
     public static function table(Table $table): Table
     {
+         $roleOptions = [
+        1 => 'Activé',
+        2 => 'Docteur',
+        3 => 'Livreur',
+        4 => 'Supprimé',
+    ];
         return $table
             ->columns([
                 // TextColumn::make('profile')
                 //     ->label('Profil')
                 //     ->toggleable(isToggledHiddenByDefault: true)
                 //     ->searchable(),
-               ImageColumn::make('profile')
-    ->label('Profil')
-    ->getStateUsing(fn ($record) => $record->profile_url) // ← l’URL signée
-    ->defaultImageUrl(asset('assets/images/default.jpg'))
-    ->circular()
-    ->height(44),
+                ImageColumn::make('profile')
+                    ->label('Profil')
+                    ->getStateUsing(fn($record) => $record->profile_url) // ← l’URL signée
+                    ->defaultImageUrl(asset('assets/images/default.jpg'))
+                    ->circular()
+                    ->height(44),
                 TextColumn::make('firstname')
                     ->label('Prénom')
                     ->searchable(),
@@ -265,66 +272,74 @@ class UserResource extends Resource
                     ->numeric()
                     ->toggleable(isToggledHiddenByDefault: true)
                     ->sortable(),
-            ])
-            ->filters([
-                //
-            ])
+            ])->filters([
+        //    SelectFilter::make('role')
+        // ->label('Rôle')
+        // ->options([1=>'Activé',2=>'Docteur',3=>'Livreur',4=>'Supprimé'])
+        // ->searchable()->preload(),
+    SelectFilter::make('default_role')
+        ->label('Rôle')
+        ->options([1=>'Activé',2=>'Docteur',3=>'Livreur',4=>'Supprimé'])
+        ->searchable()->preload(),
+        ])
+            ->persistFiltersInSession()
+            ->filtersFormColumns(1)
             ->actions([
                 ActionGroup::make([
-                     Action::make('clearProfile')
-    ->label('Supprimer la photo')
-    ->icon('heroicon-m-user-minus')
-    ->color('warning')
-    ->visible(fn ($record) => filled($record->profile)) // une seule image
-    ->form([
-        \Filament\Forms\Components\Toggle::make('delete_s3')
-            ->label('Supprimer aussi le fichier S3')
-            ->helperText('Sinon, seule la référence en base sera vidée.')
-            ->default(false),
-    ])
-    ->requiresConfirmation()
-    ->action(function (array $data, $record) {
-        $deleted = 0;
+                    Action::make('clearProfile')
+                        ->label('Supprimer la photo')
+                        ->icon('heroicon-m-user-minus')
+                        ->color('warning')
+                        ->visible(fn($record) => filled($record->profile)) // une seule image
+                        ->form([
+                            \Filament\Forms\Components\Toggle::make('delete_s3')
+                                ->label('Supprimer aussi le fichier S3')
+                                ->helperText('Sinon, seule la référence en base sera vidée.')
+                                ->default(false),
+                        ])
+                        ->requiresConfirmation()
+                        ->action(function (array $data, $record) {
+                            $deleted = 0;
 
-        // Récupère la clé/chemin S3 stocké en base (string)
-        $key = (string) $record->profile;
+                            // Récupère la clé/chemin S3 stocké en base (string)
+                            $key = (string) $record->profile;
 
-        if (! empty($data['delete_s3']) && $key) {
-            $disk = Storage::disk('s3');
+                            if (! empty($data['delete_s3']) && $key) {
+                                $disk = Storage::disk('s3');
 
-            // Si on a reçu une URL complète, on en extrait le path
-            if (preg_match('#^https?://#i', $key)) {
-                $key = ltrim(parse_url($key, PHP_URL_PATH) ?? '', '/');
-            } else {
-                $key = ltrim($key, '/');
-            }
+                                // Si on a reçu une URL complète, on en extrait le path
+                                if (preg_match('#^https?://#i', $key)) {
+                                    $key = ltrim(parse_url($key, PHP_URL_PATH) ?? '', '/');
+                                } else {
+                                    $key = ltrim($key, '/');
+                                }
 
-            // Retire le préfixe bucket/… si présent
-            $bucket = config('filesystems.disks.s3.bucket');
-            if ($bucket && Str::startsWith($key, $bucket . '/')) {
-                $key = substr($key, strlen($bucket) + 1);
-            }
+                                // Retire le préfixe bucket/… si présent
+                                $bucket = config('filesystems.disks.s3.bucket');
+                                if ($bucket && Str::startsWith($key, $bucket . '/')) {
+                                    $key = substr($key, strlen($bucket) + 1);
+                                }
 
-            try {
-                if ($key) {
-                    $disk->delete($key);
-                    $deleted = 1;
-                }
-            } catch (\Throwable $e) {
-                // on ignore l’erreur S3 ici, on continue à vider la base
-            }
-        }
+                                try {
+                                    if ($key) {
+                                        $disk->delete($key);
+                                        $deleted = 1;
+                                    }
+                                } catch (\Throwable $e) {
+                                    // on ignore l’erreur S3 ici, on continue à vider la base
+                                }
+                            }
 
-        // Vider la colonne en base (NULL ou '' selon ta préférence)
-        $record->profile = null; // ou '' si tu préfères
-        $record->save();
+                                                     // Vider la colonne en base (NULL ou '' selon ta préférence)
+                            $record->profile = null; // ou '' si tu préfères
+                            $record->save();
 
-        Notification::make()
-            ->title('Photo de profil supprimée')
-            ->body(($deleted ? "Fichier S3 supprimé.\n" : '') . 'Le champ "profile" a été vidé.')
-            ->success()
-            ->send();
-    }),
+                            Notification::make()
+                                ->title('Photo de profil supprimée')
+                                ->body(($deleted ? "Fichier S3 supprimé.\n" : '') . 'Le champ "profile" a été vidé.')
+                                ->success()
+                                ->send();
+                        }),
                     Tables\Actions\ViewAction::make(),
                     Tables\Actions\EditAction::make(),
                     Tables\Actions\DeleteAction::make(),
@@ -333,64 +348,64 @@ class UserResource extends Resource
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     BulkAction::make('clearProfileBulk')
-    ->label('Supprimer photos de profil (en masse)')
-    ->icon('heroicon-m-user-minus')
-    ->color('warning')
-    ->deselectRecordsAfterCompletion()
-    ->form([
-        \Filament\Forms\Components\Toggle::make('delete_s3')
-            ->label('Supprimer aussi les fichiers S3')
-            ->helperText('Sinon, seules les références en base seront vidées.')
-            ->default(false),
-    ])
-    ->action(function (array $data, $records) {
-        $totalRecords      = 0;
-        $totalFilesDeleted = 0;
+                        ->label('Supprimer photos de profil (en masse)')
+                        ->icon('heroicon-m-user-minus')
+                        ->color('warning')
+                        ->deselectRecordsAfterCompletion()
+                        ->form([
+                            \Filament\Forms\Components\Toggle::make('delete_s3')
+                                ->label('Supprimer aussi les fichiers S3')
+                                ->helperText('Sinon, seules les références en base seront vidées.')
+                                ->default(false),
+                        ])
+                        ->action(function (array $data, $records) {
+                            $totalRecords      = 0;
+                            $totalFilesDeleted = 0;
 
-        $deleteOnS3 = ! empty($data['delete_s3']);
-        $disk       = Storage::disk('s3');
+                            $deleteOnS3 = ! empty($data['delete_s3']);
+                            $disk       = Storage::disk('s3');
 
-        foreach ($records as $record) {
-            $totalRecords++;
+                            foreach ($records as $record) {
+                                $totalRecords++;
 
-            // Récupère la clé/URL stockée (string)
-            $key = (string) ($record->profile ?? '');
+                                // Récupère la clé/URL stockée (string)
+                                $key = (string) ($record->profile ?? '');
 
-            if ($deleteOnS3 && $key !== '') {
-                // si on a une URL complète, extraire le path
-                if (preg_match('#^https?://#i', $key)) {
-                    $key = ltrim(parse_url($key, PHP_URL_PATH) ?? '', '/');
-                } else {
-                    $key = ltrim($key, '/');
-                }
+                                if ($deleteOnS3 && $key !== '') {
+                                    // si on a une URL complète, extraire le path
+                                    if (preg_match('#^https?://#i', $key)) {
+                                        $key = ltrim(parse_url($key, PHP_URL_PATH) ?? '', '/');
+                                    } else {
+                                        $key = ltrim($key, '/');
+                                    }
 
-                // retirer le préfixe "<bucket>/" si présent
-                $bucket = config('filesystems.disks.s3.bucket');
-                if ($bucket && Str::startsWith($key, $bucket . '/')) {
-                    $key = substr($key, strlen($bucket) + 1);
-                }
+                                    // retirer le préfixe "<bucket>/" si présent
+                                    $bucket = config('filesystems.disks.s3.bucket');
+                                    if ($bucket && Str::startsWith($key, $bucket . '/')) {
+                                        $key = substr($key, strlen($bucket) + 1);
+                                    }
 
-                try {
-                    if ($key) {
-                        $disk->delete($key);
-                        $totalFilesDeleted++;
-                    }
-                } catch (\Throwable $e) {
-                    // on ignore et on continue
-                }
-            }
+                                    try {
+                                        if ($key) {
+                                            $disk->delete($key);
+                                            $totalFilesDeleted++;
+                                        }
+                                    } catch (\Throwable $e) {
+                                        // on ignore et on continue
+                                    }
+                                }
 
-            // Vider la colonne en base
-            $record->profile = null; // ou '' si tu préfères
-            $record->save();
-        }
+                                                         // Vider la colonne en base
+                                $record->profile = null; // ou '' si tu préfères
+                                $record->save();
+                            }
 
-        Notification::make()
-            ->title('Photos de profil supprimées')
-            ->body("Enregistrements traités : {$totalRecords}. Fichiers S3 supprimés : {$totalFilesDeleted}.")
-            ->success()
-            ->send();
-    }),
+                            Notification::make()
+                                ->title('Photos de profil supprimées')
+                                ->body("Enregistrements traités : {$totalRecords}. Fichiers S3 supprimés : {$totalFilesDeleted}.")
+                                ->success()
+                                ->send();
+                        }),
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
