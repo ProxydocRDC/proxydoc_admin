@@ -35,13 +35,35 @@ class ProxyDoctorResource extends Resource
                     Hidden::make('updated_by')->default(fn () => Auth::id())->dehydrated(),
 
 
-                    Select::make('user_id')
-                        ->label('Utilisateur (compte)')
-                        // si tu as le modèle User :
-                        ->relationship(name: 'user', titleAttribute: 'Fullname')
-                        ->relationship(name: 'user', titleAttribute: 'lastname')
-                        ->searchable()->preload()->required()
-                        ->columnSpan(6),
+                    // Select::make('user_id')
+                    //     ->label('Utilisateur (compte)')
+                    //     // si tu as le modèle User :
+                    //     ->relationship(name: 'user', titleAttribute: 'Fullname')
+                    //     ->relationship(name: 'user', titleAttribute: 'lastname')
+                    //     ->searchable()->preload()->required()
+                    //     ->columnSpan(6),
+                        Select::make('user_id')
+                            ->label('Utilisateur (compte)')
+                            ->relationship(name: 'user', titleAttribute: 'id') // base technique
+                            ->getOptionLabelFromRecordUsing(function (\App\Models\User $u): string {
+                                // choisis l’ordre de priorité selon ton schéma
+                                $full = $u->fullname ?? null;   // si tu as bien une colonne 'fullname'
+                                if (is_string($full) && $full !== '') {
+                                    return $full;
+                                }
+
+                                $parts = array_filter([$u->lastname ?? null, $u->firstname ?? null]);
+                                if (! empty($parts)) {
+                                    return implode(' ', $parts);
+                                }
+
+                                // dernier recours lisible
+                                return "User #{$u->id}";
+                            })
+                            ->searchable()
+                            ->preload()
+                            ->required()
+                            ->columnSpan(6),
 
                     TextInput::make('fullname')
                         ->label('Nom complet')->required()->maxLength(200)->columnSpan(6),
@@ -107,9 +129,16 @@ class ProxyDoctorResource extends Resource
                         ->preload()
                         ->columnSpan(6),
 
-                    Select::make('academic_title_id')
+                    // Select::make('academic_title_id')
+                    //     ->label('Titre académique')
+                    //     ->relationship('academicTitle', 'label')   // proxy_ref_academic_titles.label
+                    //     ->searchable()
+                    //     ->preload()
+                    //     ->columnSpan(6),
+                        Select::make('academic_title_id')
                         ->label('Titre académique')
-                        ->relationship('academicTitle', 'label')   // proxy_ref_academic_titles.label
+                        ->relationship('academicTitle', 'label')
+                        ->getOptionLabelFromRecordUsing(fn ($record) => (string) ($record->label ?? "Titre #{$record->id}"))
                         ->searchable()
                         ->preload()
                         ->columnSpan(6),
