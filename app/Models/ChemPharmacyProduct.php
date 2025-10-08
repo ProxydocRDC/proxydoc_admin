@@ -45,7 +45,15 @@ class ChemPharmacyProduct extends Model
     }
     public function manufacturer()
     {return $this->belongsTo(\App\Models\ChemManufacturer::class);}
+public function creator()
+{
+    return $this->belongsTo(\App\Models\User::class, 'created_by');
+}
 
+public function updater()
+{
+    return $this->belongsTo(\App\Models\User::class, 'updated_by');
+}
     /** Convertit une URL S3 complète en clé, ou retourne la clé telle quelle */
     protected function s3KeyFromUrlOrKey(?string $value): ?string
     {

@@ -10,10 +10,11 @@ use App\Models\ChemPharmaceuticalForm;
 use App\Models\Concerns\HasS3MediaUrls;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ChemProduct extends Model
 {
-       use HasS3MediaUrls;
+       use HasS3MediaUrls,SoftDeletes;
 
     // Accessors pratiques :
     public function getImageUrlAttribute(): ?string
@@ -151,6 +152,15 @@ public function posologies()
 public function pharmacyProducts()
 {
     return $this->hasMany(ChemPharmacyProduct::class, 'product_id');
+}
+// (suivi des encodeurs, si tu veux afficher/filtrer aussi)
+public function creator()
+{
+    return $this->belongsTo(\App\Models\User::class, 'created_by');
+}
+public function updater()
+{
+    return $this->belongsTo(\App\Models\User::class, 'updated_by');
 }
 
 }

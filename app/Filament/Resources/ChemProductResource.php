@@ -24,11 +24,12 @@ use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\SelectColumn;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Filters\{SelectFilter,TernaryFilter,TrashedFilter,Filter};
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Database\Eloquent\Builder;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -230,6 +231,20 @@ class ChemProductResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+         ->modifyQueryUsing(function (Builder $q) {
+            // preload for group headers/columns
+            $q->with(['supplier','category','creator','updater']);
+
+            // aliases we will actually use below
+            // $q->addSelect([
+            //     'affectations_count' => ChemPharmacyProduct::query()
+            //         ->selectRaw('COUNT(*)')
+            //         ->whereColumn('chem_pharmacy_products.product_id', 'chem_products.id'),
+            //     'affectations_stock_sum' => ChemPharmacyProduct::query()
+            //         ->selectRaw('COALESCE(SUM(stock_qty), 0)')
+            //         ->whereColumn('chem_pharmacy_products.product_id', 'chem_products.id'),
+            // ]);
+        })
             ->columns([
                 TextColumn::make('index')
                     ->label('#')
@@ -277,7 +292,29 @@ class ChemProductResource extends Resource
                     ->label('Marque')
                     ->toggleable()
                     ->searchable(),
-
+ TextColumn::make('creator.name')
+                ->label('Créé par')
+                ->placeholder('—')
+                ->badge()
+                ->sortable(query: function (Builder $query, string $direction) {
+                    // tri via sous-requête (pas besoin de JOIN)
+                    $query->orderBy(
+                        User::select('firstname, lastname, gender, phone')->whereColumn('users.id','chem_pharmacy_products.created_by'),
+                        $direction
+                    );
+                })
+                ->searchable(isIndividual: true, isGlobal: true),
+                   TextColumn::make('updater.firstname')
+                ->label('Modifié par')
+                ->placeholder('—')
+                ->badge()
+                ->sortable(query: function (Builder $query, string $direction) {
+                    $query->orderBy(
+                        User::select('firstname, lastname, gender, phone')->whereColumn('users.id','chem_pharmacy_products.updated_by'),
+                        $direction
+                    );
+                })
+                ->searchable(isIndividual: true, isGlobal: true),
                 TextColumn::make('manufacturer.name')
                     ->label('Fabricant')
                     ->toggleable()
@@ -335,8 +372,61 @@ class ChemProductResource extends Resource
             ])
             ->filters([
                 SelectFilter::make('status')
-                    ->label('Statut')
-                    ->options([1 => 'Actif', 0 => 'Inactif']),
+                ->label('Statut')
+                ->options([1 => 'Actif', 0 => 'Inactif']),
+
+            // SelectFilter::make('manufacturer_id')
+            //     ->label('Fournisseur')
+            //     ->options(fn () => ChemSupplier::query()->orderBy('fullname')->pluck('fullname', 'id'))
+            //     ->searchable()->preload()->indicator('Fournisseur'),
+
+            // SelectFilter::make('category_id')
+            //     ->label('Catégorie')
+            //     ->options(fn () => ChemCategory::query()->orderBy('name')->pluck('name', 'id'))
+            //     ->searchable()->preload()->indicator('Catégorie'),
+
+            Filter::make('price_range')
+                ->label('Prix réf.')
+                ->form([
+                    \Filament\Forms\Components\TextInput::make('min')->numeric()->label('Min'),
+                    \Filament\Forms\Components\TextInput::make('max')->numeric()->label('Max'),
+                ])
+                ->query(function (Builder $q, array $data) {
+                    return $q
+                        ->when($data['min'] ?? null, fn ($qq, $min) => $qq->where('price_ref', '>=', $min))
+                        ->when($data['max'] ?? null, fn ($qq, $max) => $qq->where('price_ref', '<=', $max));
+                })
+                ->indicateUsing(function (array $data) {
+                    $chips = [];
+                    if (!empty($data['min'])) $chips[] = 'Min: '.$data['min'];
+                    if (!empty($data['max'])) $chips[] = 'Max: '.$data['max'];
+                    return $chips;
+                }),
+
+            TernaryFilter::make('has_image')
+                ->label('Avec image')
+                ->trueLabel('Avec image')
+                ->falseLabel('Sans image')
+                ->queries(
+                    true: fn (Builder $q) => $q->whereNotNull('images')->where('images','!=',''),
+                    false: fn (Builder $q) => $q->whereNull('images')->orWhere('images',''),
+                    blank: fn (Builder $q) => $q
+                )
+                ->indicator('Image'),
+
+            TernaryFilter::make('is_assigned')
+                ->label('Affecté à une pharmacie')
+                ->trueLabel('Affecté')
+                ->falseLabel('Non affecté')
+                ->queries(
+                    true: fn (Builder $q) => $q->whereHas('pharmacyProducts'),
+                    false: fn (Builder $q) => $q->whereDoesntHave('pharmacyProducts'),
+                    blank: fn (Builder $q) => $q
+                )
+                ->indicator('Affectation'),
+
+            TrashedFilter::make(),
+
             ])
             ->actions([
                 ActionGroup::make([

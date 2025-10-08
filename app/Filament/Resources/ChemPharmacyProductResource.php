@@ -1,6 +1,7 @@
 <?php
 namespace App\Filament\Resources;
 
+use App\Models\User;
 use Filament\Tables;
 use Filament\Forms\Form;
 use Filament\Tables\Table;
@@ -238,8 +239,12 @@ class ChemPharmacyProductResource extends Resource
             // ])
             ->defaultSort('id', 'desc')
           // On précharge la pharmacie + ses agrégats pour construire le label du groupe
-        ->modifyQueryUsing(fn ($query) => $query->with(['pharmacy', 'product']))
+        ->modifyQueryUsing(fn ($query) => $query->with(['pharmacy', 'product','creator','updater']))
         ->groups([
+            groupingGroup::make('created_by')
+        ->label('Encodeur')
+        ->getTitleFromRecordUsing(fn ($record) => 'Encodeur : '.($record->creator->firstname ?? '—'))
+        ->collapsible(),
             groupingGroup::make('pharmacy.name')->label('Pharmacie')->collapsible(),
         ])
         ->defaultGroup('pharmacy.name')          // ✅ OK
@@ -249,27 +254,11 @@ class ChemPharmacyProductResource extends Resource
         ->persistSearchInSession()           // mémorise la recherche globale
         ->persistColumnSearchesInSession()   // mémorise les recherches par colonne      // ✅ pas de colonne relationnelle ici
 
-        // ✅ Groupement par pharmacie avec entête custom
-        // ->groups([
-        //     groupingGroup::make('pharmacy_id')
-        //         ->label('Pharmacie')
-        //         ->getTitleFromRecordUsing(function ($record) {
-        //             $p      = $record->pharmacy;
-        //             $name   = $p?->name ?? '—';
-        //             $count  = (int) ($p?->pharmacy_products_count ?? 0);
-        //             $stock  = (int) ($p?->pharmacy_products_sum_stock_qty ?? 0);
-
-        //             // Formatage gentil (espaces comme séparateurs de milliers)
-        //             $stockFmt = number_format($stock, 0, ',', ' ');
-
-        //             return "Pharmacie : {$name} ({$count} produits, Stock total : {$stockFmt})";
-        //         })
-        //         ->collapsible(),
-        // ])
-        // ->defaultGroup('pharmacy_id')
 
         // Colonnes (exemple)
         ->columns([
+        //     TextColumn::make('id')->label('Lignes')
+        // ->summarize([ Count::make()->label('Total lignes encodées') ]),
             TextColumn::make('pharmacy.name')
                 ->label('Pharmacie')
                 ->searchable(isIndividual: true, isGlobal: true) // colonne & global
@@ -302,6 +291,39 @@ class ChemPharmacyProductResource extends Resource
                 ->toggleable()
                 ->limit(50)
                 ->searchable(isIndividual: true, isGlobal: true),
+                TextColumn::make('creator.name')
+                ->label('Créé par')
+                ->placeholder('—')
+                ->badge()
+                ->sortable(query: function (Builder $query, string $direction) {
+                    // tri via sous-requête (pas besoin de JOIN)
+                    $query->orderBy(
+                        User::select('firstname, lastname, gender, phone')->whereColumn('users.id','chem_pharmacy_products.created_by'),
+                        $direction
+                    );
+                })
+                ->searchable(isIndividual: true, isGlobal: true),
+                 TextColumn::make('created_at')
+                ->label('Créé le')
+                ->dateTime()
+                ->sortable(),
+
+            TextColumn::make('updater.firstname')
+                ->label('Modifié par')
+                ->placeholder('—')
+                ->badge()
+                ->sortable(query: function (Builder $query, string $direction) {
+                    $query->orderBy(
+                        User::select('firstname, lastname, gender, phone')->whereColumn('users.id','chem_pharmacy_products.updated_by'),
+                        $direction
+                    );
+                })
+                ->searchable(isIndividual: true, isGlobal: true),
+
+            TextColumn::make('updated_at')
+                ->label('Modifié le')
+                ->dateTime()
+                ->sortable(),
         ])
             ->filters([
                  // Filtre par pharmacie
@@ -573,7 +595,8 @@ currency*(USD/CDF), stock_qty, reorder_level, image(clé S3), description.'
                 Tables\Actions\DeleteBulkAction::make()->label('Supprimer sélection'),
             ])->filtersFormColumns(2)
         ->persistFiltersInSession()  // mémorise les filtres choisis
-
+        ->persistSearchInSession()
+        ->persistColumnSearchesInSession()
         // (optionnel) tri par défaut
         ->defaultSort('pharmacy.name');
     }

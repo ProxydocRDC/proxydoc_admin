@@ -66,4 +66,5 @@ public function pharmacyProducts()
 {
     return $this->hasMany(\App\Models\ChemPharmacyProduct::class, 'pharmacy_id');
 }
+
 }

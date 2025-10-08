@@ -179,6 +179,7 @@ class ChemPharmacyResource extends Resource
     {
 
         return $table
+        ->modifyQueryUsing(fn ($q) => $q->withCount('pharmacyProducts'))
             ->columns([
                 ImageColumn::make('logo')
                     ->label('Logo')
@@ -210,7 +211,10 @@ TextColumn::make('pharmacy_products_count')   // ✅ snake_case
                 TextColumn::make('user.fullname') // adapte le champ d’affichage
                     ->label('Propriétaireb')
                     ->toggleable(),
-
+TextColumn::make('pharmacy_products_count')
+    ->label('Produits')
+    ->counts('pharmacyProducts')   // ok car la relation est sur ChemPharmacy
+    ->badge(),
                 TextColumn::make('supplier.company_name')
                     ->label('Entreprise')
                     ->toggleable(),
