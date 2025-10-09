@@ -4,8 +4,10 @@ namespace App\Models;
 
 use App\Models\User;
 use App\Models\ChemProduct;
+use Illuminate\Support\Str;
 use App\Models\ChemSupplier;
 use App\Models\ProxyService;
+use Illuminate\Support\Facades\Auth;
 use App\Models\Concerns\GeneratesCode;
 use App\Models\Concerns\HasS3MediaUrls;
 use Illuminate\Database\Eloquent\Model;
@@ -60,5 +62,20 @@ class ChemHospital extends Model {
     // belongsTo vers le code, pas l’ID
     return $this->belongsTo(\App\Models\ProxyRefHospitalTier::class, 'tier_code', 'code');
 }
+protected static function booted(): void
+    {
+        static::saving(function (self $m) {
+            // Génère un code si absent
+            if (blank($m->code)) {
+                // Exemple: HOS-000123 ou HOS-AB12CD
+                $m->code = 'HOS-' . strtoupper(Str::random(6));
+            }
 
+            // Mets à jour le traçage si tu l’utilises
+            if (! $m->exists && blank($m->created_by)) {
+                $m->created_by = Auth::id();
+            }
+            $m->updated_by = Auth::id();
+        });
+    }
 }

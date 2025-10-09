@@ -50,4 +50,8 @@ class Code
 
         return $code;
     }
+    public static function hospital(?string $prefix = 'HOS'): string
+    {
+        return ($prefix ? $prefix.'-' : '') . strtoupper(Str::random(6));
+    }
 }
