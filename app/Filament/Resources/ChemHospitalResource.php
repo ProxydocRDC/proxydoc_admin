@@ -40,7 +40,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 class ChemHospitalResource extends Resource
 {
-    use RestrictToSupplier; // la table a bien supplier_id → OK
+    // use RestrictToSupplier; // la table a bien supplier_id → OK
 
     protected static ?string $model = ChemHospital::class;
 
