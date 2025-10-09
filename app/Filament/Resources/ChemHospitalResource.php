@@ -348,6 +348,10 @@ class ChemHospitalResource extends Resource
                         ->rows(4)
                         ->maxLength(5000)
                         ->columnSpan(12),
+                        Toggle::make('status')
+                                        ->label('Visible')
+                                        ->reactive()
+                                        ->columnSpan(6),
                 ]),
             ])->columnSpanFull(),
         ]);
