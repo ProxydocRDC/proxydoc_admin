@@ -36,9 +36,11 @@ use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\TimePicker;
 use App\Support\Filament\RestrictToSupplier;
 
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 class ChemHospitalResource extends Resource
 {
-    // use RestrictToSupplier; // la table a bien supplier_id → OK
+    use RestrictToSupplier; // la table a bien supplier_id → OK
 
     protected static ?string $model = ChemHospital::class;
 
@@ -363,12 +365,14 @@ class ChemHospitalResource extends Resource
                     ->size(64)
                     ->square()
                     ->openUrlInNewTab()
-                    ->url(fn($record) => $record->mediaUrl('logo', ttl: 5)),
+                    ->url(fn($record) => $record->mediaUrl('logo', ttl: 5))
+                    ->openUrlInNewTab(),
                 ImageColumn::make('images')
                     ->label('Images')
                 // renvoie un ARRAY d’URLs pour l’affichage empilé
-                    ->getStateUsing(fn($record) => $record->mediaUrls('images'))
-                    ->defaultImageUrl(asset('images/PROFI-TIK.jpg'))
+                    // ->getStateUsing(fn($record) => $record->mediaUrls('images'))
+                     ->getStateUsing(fn($record) => is_array($record?->mediaUrls('images')) ? $record->mediaUrls('images') : [])
+                    ->defaultImageUrl(asset('assets/images/default.jpg'))
                     ->circular()
                     ->stacked()
                     ->limit(2)
@@ -500,9 +504,32 @@ class ChemHospitalResource extends Resource
             ->bulkActions([
                 Tables\Actions\DeleteBulkAction::make()
                     ->visible(fn() => Auth::user()?->hasRole('super_admin')),
-            ]);
+            ])->emptyStateHeading('Aucun hôpital visible')
+->emptyStateDescription('Vérifiez vos filtres, vos droits ou le fournisseur actif.');
+    }
+public static function getEloquentQuery(): Builder
+{
+    $u = Auth::user();
+
+    $q = parent::getEloquentQuery()
+        ->with(['tier']); // pour TextColumn::make('tier.label')
+
+    // multi-tenant / visibilité (exemple)
+    if (! $u?->hasRole('super_admin')) {
+        $supplierId = $u?->supplier?->id ?? 0;
+        $q->where('supplier_id', $supplierId);
     }
 
+    // si tu as un statut actif/inactif et que tu veux ne lister que les actifs :
+    // $q->where('status', 1);
+
+    // si le modèle utilise SoftDeletes et que tu ne veux PAS l’état "corbeille" par défaut,
+    // NE change rien (Filament exclut déjà deleted_at != null via SoftDeletingScope)
+    // Sinon, pour afficher aussi la corbeille par défaut :
+    // $q->withoutGlobalScopes([SoftDeletingScope::class]);
+
+    return $q;
+}
     // Enregistrement automatique des métadonnées
     // public static function mutateFormDataBeforeCreate(array $data): array
     // {
