@@ -34,10 +34,12 @@ use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\TimePicker;
-use App\Support\Filament\RestrictToSupplier;
-
 use Illuminate\Database\Eloquent\Builder;
+
+use App\Support\Filament\RestrictToSupplier;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use League\CommonMark\Extension\CommonMark\Node\Inline\Code;
+
 class ChemHospitalResource extends Resource
 {
     // use RestrictToSupplier; // la table a bien supplier_id → OK
@@ -78,7 +80,7 @@ class ChemHospitalResource extends Resource
                             //     return;
                             // }
                             // $set('code', self::generateHospitalCode($state));
-                            $set('code', \App\Support\Code::make($state, 'HOSP'));
+                            $set('code', Code::make($state, 'HOSP'));
                         })->columnSpan(4),
                     TextInput::make('code')
                         ->label('Code')
