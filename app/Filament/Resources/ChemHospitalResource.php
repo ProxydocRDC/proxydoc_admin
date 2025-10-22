@@ -38,7 +38,7 @@ use Illuminate\Database\Eloquent\Builder;
 
 use App\Support\Filament\RestrictToSupplier;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
-use League\CommonMark\Extension\CommonMark\Node\Inline\Code;
+use App\Support\Code;
 
 class ChemHospitalResource extends Resource
 {
