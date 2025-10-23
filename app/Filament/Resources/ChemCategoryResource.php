@@ -105,7 +105,14 @@ class ChemCategoryResource extends Resource
     {
         return $table
         // On enrichit la query avec le compteur:
-        ->modifyQueryUsing(fn (Builder $q) => $q->withCount('products'))
+       ->modifyQueryUsing(function ($q) {
+    $q->addSelect([
+        'products_count' => ChemProduct::query()
+            ->selectRaw('COUNT(*)')
+            ->whereColumn('chem_products.category_id', 'chem_categories.id')
+            ->limit(1),
+    ]);
+})
             ->columns([
                 ImageColumn::make('image') // colonne réelle = 'image'
                     ->label('Image')
