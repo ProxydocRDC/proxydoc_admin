@@ -7,6 +7,7 @@ use Filament\Forms\Get;
 use Filament\Forms\Set;
 use Filament\Forms\Form;
 use Filament\Tables\Table;
+use App\Models\ChemProduct;
 use Illuminate\Support\Str;
 use App\Models\ChemCategory;
 use Filament\Resources\Resource;
@@ -105,8 +106,8 @@ class ChemCategoryResource extends Resource
     {
         return $table
         // On enrichit la query avec le compteur:
-       ->modifyQueryUsing(function ($q) {
-    $q->addSelect([
+       ->modifyQueryUsing(function ($query) {
+    $query->addSelect([
         'products_count' => ChemProduct::query()
             ->selectRaw('COUNT(*)')
             ->whereColumn('chem_products.category_id', 'chem_categories.id')
