@@ -1,30 +1,31 @@
 <?php
 namespace App\Filament\Resources;
 
-use App\Filament\Resources\ChemCategoryResource\Pages;
-use App\Models\ChemCategory;
 use App\Models\User;
-use Filament\Forms\Components\FileUpload;
-use Filament\Forms\Components\Group;
-use Filament\Forms\Components\Hidden;
-use Filament\Forms\Components\Section;
-use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Toggle;
-use Filament\Forms\Form;
+use Filament\Tables;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
-use Filament\Notifications\Notification;
+use Filament\Forms\Form;
+use Filament\Tables\Table;
+use Illuminate\Support\Str;
+use App\Models\ChemCategory;
 use Filament\Resources\Resource;
-use Filament\Tables;
+use Illuminate\Support\Collection;
 use Filament\Tables\Actions\Action;
+use Filament\Forms\Components\Group;
+use Illuminate\Support\Facades\Auth;
+use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\Toggle;
+use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Textarea;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Columns\ImageColumn;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Table;
-use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Str;
+use Filament\Forms\Components\FileUpload;
+use Illuminate\Database\Eloquent\Builder;
+use App\Filament\Resources\ChemCategoryResource\Pages;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
 class ChemCategoryResource extends Resource
@@ -103,6 +104,8 @@ class ChemCategoryResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+        // On enrichit la query avec le compteur:
+        ->modifyQueryUsing(fn (Builder $q) => $q->withCount('products'))
             ->columns([
                 ImageColumn::make('image') // colonne réelle = 'image'
                     ->label('Image')
@@ -113,15 +116,16 @@ class ChemCategoryResource extends Resource
                     ->openUrlInNewTab()
                     ->url(fn($record) => $record->mediaUrl('image', ttl: 5)), // clic = grande image
 
-
-
-
-
                 TextColumn::make('name')
                     ->label('Nom')
                     ->sortable()
                     ->searchable(),
-
+TextColumn::make('products_count')
+                ->label('Produits')
+                ->badge()              // joli badge
+                ->alignCenter()
+                ->sortable()
+                ->tooltip(fn ($record) => "{$record->products_count} produit(s)"),
                 TextColumn::make('code')
                     ->label('Code')
                     ->searchable(),
