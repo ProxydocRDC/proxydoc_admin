@@ -340,6 +340,14 @@ class ChemProductResource extends Resource
                         'danger'  => fn($s)  => (int) $s === 0,
                     ])
                     ->sortable(),
+                BadgeColumn::make('with_prescription')
+                    ->label('Prescription')
+                    ->formatStateUsing(fn($state) => (int) $state === 1 ? 'Obligatoir' : 'Optionelle')
+                    ->colors([
+                        'danger' => fn($s) => (int) $s === 1,
+                        'success'  => fn($s)  => (int) $s === 0,
+                    ])
+                    ->sortable(),
 
                 // édition inline : change le statut + toast
                 SelectColumn::make('status')
