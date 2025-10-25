@@ -123,6 +123,7 @@ class ChemProduct extends Model
     protected $casts = [
         "images"=>"array",
         'status' => 'integer',
+        'with_prescription' => 'bool', // ou 'integer' si tu préfères
     ];
      protected $attributes = [
         'status' => 1, // actif par défaut

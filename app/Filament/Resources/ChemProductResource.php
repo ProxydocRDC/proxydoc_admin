@@ -704,6 +704,30 @@ Optionnels : category_code, manufacturer_name, form_name, sku, barcode, strength
                             ->success()
                             ->send();
                     }),
+
+BulkAction::make('bulkSetPrescription')
+    ->label('Définir ordonnance (sélection)')
+    ->icon('heroicon-m-document-check')
+    ->color('primary')
+    ->form([
+        Toggle::make('value')
+            ->label('Ordonnance requise ?')
+            ->default(true),
+    ])
+    ->action(function (array $data, $records) {
+        $count = 0;
+        foreach ($records as $record) {
+            $record->with_prescription = $data['value'] ? 1 : 0;
+            $record->save();
+            $count++;
+        }
+
+        Notification::make()
+            ->title('Mise à jour en lot')
+            ->body("{$count} enregistrement(s) mis à jour.")
+            ->success()
+            ->send();
+    }),
                 Tables\Actions\DeleteBulkAction::make()->label('Supprimer la sélection'),
             ]);
     }
