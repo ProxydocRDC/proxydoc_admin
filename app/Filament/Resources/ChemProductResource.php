@@ -346,8 +346,7 @@ class ChemProductResource extends Resource
                     ->colors([
                         'danger' => fn($state) => (int) $state === 1,
                         'success'  => fn($state)  => (int) $state === 0,
-                    ])
-                    ->sortable(),
+                    ])->sortable(),
 
                 // édition inline : change le statut + toast
                 SelectColumn::make('status')
