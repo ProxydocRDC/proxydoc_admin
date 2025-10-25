@@ -383,6 +383,9 @@ class ChemProductResource extends Resource
                 SelectFilter::make('status')
                 ->label('Statut')
                 ->options([1 => 'Actif', 0 => 'Inactif']),
+                SelectFilter::make('with_prescription')
+                ->label('Avec ordonnance')
+                ->options([1 => 'Obligatoire', 0 => 'Optionelle']),
 
             // SelectFilter::make('manufacturer_id')
             //     ->label('Fournisseur')
