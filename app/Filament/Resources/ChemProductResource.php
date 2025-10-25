@@ -336,16 +336,16 @@ class ChemProductResource extends Resource
                     ->label('Statut')
                     ->formatStateUsing(fn($state) => (int) $state === 1 ? 'Actif' : 'Inactif')
                     ->colors([
-                        'success' => fn($s) => (int) $s === 1,
-                        'danger'  => fn($s)  => (int) $s === 0,
+                        'success' => fn($state) => (int) $state === 1,
+                        'danger'  => fn($state)  => (int) $state === 0,
                     ])
                     ->sortable(),
                 BadgeColumn::make('with_prescription')
                     ->label('Prescription')
                     ->formatStateUsing(fn($state) => (int) $state === 1 ? 'Obligatoir' : 'Optionelle')
                     ->colors([
-                        'danger' => fn($s) => (int) $s === 1,
-                        'success'  => fn($s)  => (int) $s === 0,
+                        'danger' => fn($state) => (int) $state === 1,
+                        'success'  => fn($state)  => (int) $state === 0,
                     ])
                     ->sortable(),
 
