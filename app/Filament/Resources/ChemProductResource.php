@@ -492,6 +492,26 @@ class ChemProductResource extends Resource
                                 ->success()
                                 ->send();
                         }),
+                   Action::make('togglePrescription')
+    ->label(fn ($record) => $record->with_prescription ? 'Désactiver l’ordonnance' : 'Activer l’ordonnance')
+    ->icon(fn ($record) => $record->with_prescription ? 'heroicon-m-x-mark' : 'heroicon-m-check')
+    ->color(fn ($record) => $record->with_prescription ? 'warning' : 'success')
+    ->requiresConfirmation()
+    ->action(function ($record) {
+        // Assure-toi que le champ est bien casté en bool dans le modèle (voir plus bas)
+        $record->with_prescription = (int) ! (bool) $record->with_prescription;
+        $record->save();
+
+        Notification::make()
+            ->title('Statut mis à jour')
+            ->body(
+                $record->with_prescription
+                ? 'Ordonnance requise: OUI (1).'
+                : 'Ordonnance requise: NON (0).'
+            )
+            ->success()
+            ->send();
+    }),
                     Tables\Actions\EditAction::make()->label('Modifier'),
                     Tables\Actions\DeleteAction::make()->label('Supprimer'),
                 ]),
