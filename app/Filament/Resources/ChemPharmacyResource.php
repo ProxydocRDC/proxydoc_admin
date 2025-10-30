@@ -236,10 +236,16 @@ TextColumn::make('pharmacy_products_count')
                     ->options([1 => 'Actif', 0 => 'Inactif']),
             ])
             ->headerActions([
-                Action::make('reset')
-                    ->label('Réinitialiser la vue')->icon('heroicon-m-arrow-path')
-                    ->action(fn() => redirect(request()->url())),
-
+              Action::make('reset')
+    ->label('Réinitialiser la vue')
+    ->icon('heroicon-m-arrow-path')
+    ->action(function (Action $action) {
+        $lw = $action->getLivewire();
+        // Ces propriétés existent selon ta version de Filament :
+        $lw->reset('tableFilters', 'tableSearch', 'tableSortColumn', 'tableSortDirection', 'tableRecordsPerPage');
+        // Puis on force une navigation propre :
+        $lw->redirect(url()->current(), navigate: true);
+    }),
                 // Télécharger le modèle CSV
                 Action::make('templateCsv')
                     ->label('Télécharger le modèle')
