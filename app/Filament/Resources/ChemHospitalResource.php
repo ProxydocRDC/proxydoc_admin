@@ -80,7 +80,8 @@ class ChemHospitalResource extends Resource
                             //     return;
                             // }
                             // $set('code', self::generateHospitalCode($state));
-                            $set('code', Code::make($state, 'HOSP'));
+                            // $set('code', Code::make($state, 'HOSP'));
+                             $set('code', strtoupper('HOSP-' . Str::slug($state, '')));
                         })->columnSpan(4),
                     TextInput::make('code')
                         ->label('Code')
