@@ -179,17 +179,17 @@ class ChemPharmacyResource extends Resource
     {
 
         return $table
-        ->modifyQueryUsing(fn ($state) => $state->withCount('pharmacyProducts'))
+        // ->modifyQueryUsing(fn ($state) => $state->withCount('pharmacyProducts'))
             ->columns([
                 ImageColumn::make('logo')
                     ->label('Logo')
                     ->height(40)
-                    ->getStateUsing(fn($state) => $state->mediaUrl('logo')) // URL finale
+                    ->getStateUsing(fn($record) => $record->mediaUrl('logo')) // URL finale
                     ->size(64)
                     ->square()
                     ->defaultImageUrl(asset('assets/images/default.jpg')) // 👈 évite l’icône cassée
                     ->openUrlInNewTab()
-                    ->url(fn($state) => $state->mediaUrl('logo', ttl: 5)), // clic = grande image,,
+                    ->url(fn($record) => $record->mediaUrl('logo', ttl: 5)), // clic = grande image,,
 
                 TextColumn::make('name')
                     ->label('Nom')
