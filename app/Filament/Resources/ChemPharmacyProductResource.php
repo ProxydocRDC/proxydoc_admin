@@ -533,7 +533,7 @@ currency*(USD/CDF), stock_qty, reorder_level, image(clé S3), description.'
                             'image'          => $data['image'] ?? null,
                             'description'    => $data['description'] ?? null,
                             'created_by'     => $user?->id,
-                            'status'         => -1,
+                            'status'         => 1,
                             'created_at'     => now(),
                             'updated_at'     => now(),
                         ];
