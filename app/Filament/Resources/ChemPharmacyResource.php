@@ -50,14 +50,14 @@ class ChemPharmacyResource extends Resource
         // Requête la plus simple: pas de scope, pas de filtre
         // return ChemPharmacy::query()->withoutGlobalScopes([SoftDeletingScope::class]);
 
-        $q = ChemPharmacy::query()->withoutGlobalScopes([SoftDeletingScope::class]);
+        $record = ChemPharmacy::query()->withoutGlobalScopes([SoftDeletingScope::class]);
         $u = Auth::user();
 
         if ($u?->hasRole('fournisseur')) {
-            $q->where('supplier_id', optional($u->supplier)->id);
+            $record->where('supplier_id', optional($u->supplier)->id);
         }
 
-        return $q;
+        return $record;
     }
     public static function form(Form $form): Form
     {
@@ -116,7 +116,7 @@ class ChemPharmacyResource extends Resource
                                         ->options(fn() =>
                                             \App\Models\User::query()
                                                 ->when(Auth::user()?->hasRole('fournisseur'),
-                                                    fn($q) => $q->whereKey(Auth::id()))
+                                                    fn($record) => $record->whereKey(Auth::id()))
                                                 ->pluck('firstname', 'id')
                                         )
                                         ->default(fn() => Auth::id())
@@ -133,7 +133,7 @@ class ChemPharmacyResource extends Resource
                                         ->options(fn() =>
                                             \App\Models\ChemSupplier::query()
                                                 ->when(Auth::user()?->hasRole('fournisseur'),
-                                                    fn($q) => $q->whereKey(Auth::user()->supplier?->id ?? 0))
+                                                    fn($record) => $record->whereKey(Auth::user()->supplier?->id ?? 0))
                                                 ->pluck('company_name', 'id')
                                         )
                                         ->default(fn() => Auth::user()?->supplier?->id)
@@ -179,7 +179,7 @@ class ChemPharmacyResource extends Resource
     {
 
         return $table
-        ->modifyQueryUsing(fn ($q) => $q->withCount('pharmacyProducts'))
+        ->modifyQueryUsing(fn ($record) => $record->withCount('pharmacyProducts'))
             ->columns([
                 ImageColumn::make('logo')
                     ->label('Logo')

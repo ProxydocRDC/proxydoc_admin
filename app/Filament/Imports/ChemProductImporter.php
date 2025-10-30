@@ -14,6 +14,9 @@ use App\Models\ChemCategory;              // possède un champ `code`
 use App\Models\ChemManufacturer;          // pas de `code`, on matche sur `name`
 use App\Models\ChemPharmaceuticalForm;    // on matche sur `name`
 
+use App\Models\ChemPharmacy;
+use App\Models\ChemPharmacyProduct;
+
 class ChemProductImporter extends Importer
 {
     protected static ?string $model = ChemProduct::class;
@@ -335,5 +338,55 @@ class ChemProductImporter extends Importer
     {
         return 8000; // 8 secondes
     }
+
+    /**
+ * Après la sauvegarde d’une ligne (création ou update),
+ * on rattache le produit à la pharmacie par défaut "Pharmacie Proxydoc".
+ */
+protected function afterSave(): void
+{
+    $product = $this->record;
+    if (! $product?->id) {
+        return;
+    }
+
+    // 1) Récupérer (ou créer) la pharmacie par défaut
+    $pharmacyId = ChemPharmacy::query()
+        ->where('name', 'Pharmacie Proxydoc') // nom lisible
+        ->orWhere('code', 'PROXYDOC')         // code technique si présent
+        ->value('id');
+
+    if (! $pharmacyId) {
+        $pharmacy = ChemPharmacy::create([
+            'status'      => 1,
+            'name'        => 'Pharmacie Proxydoc',
+            'code'        => 'PROXYDOC',              // si ta table a la colonne code
+            'created_by'  => Auth::id() ?? 1,
+            'updated_by'  => Auth::id() ?? 1,
+            'user_id'     => Auth::id() ?? 1,         // adapte si nécessaire
+            'supplier_id' => 0,                       // adapte si nécessaire
+            'zone_id'     => 1,                       // adapte si nécessaire
+        ]);
+        $pharmacyId = $pharmacy->id;
+    }
+
+    // 2) Lier le produit à cette pharmacie (évite les doublons)
+    ChemPharmacyProduct::firstOrCreate(
+        [
+            'pharmacy_id' => $pharmacyId,
+            'product_id'  => $product->id,
+        ],
+        [
+            'status'     => 1,
+            // On peut reprendre un prix par défaut depuis le produit (ex: price_ref) :
+            'sale_price' => (float) ($product->price_ref ?? 0),
+            'currency'   => 'USD',    // ou 'CDF' selon ton contexte / valeur par défaut
+            'stock_qty'  => 50,
+            'reorder_level'  => 5,
+            'created_by' => Auth::id() ?? 1,
+            'updated_by' => Auth::id() ?? 1,
+        ]
+    );
+}
 
 }
