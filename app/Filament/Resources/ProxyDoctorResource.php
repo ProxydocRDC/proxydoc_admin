@@ -10,7 +10,9 @@ use App\Models\ProxyDoctor;
 use Filament\Resources\Resource;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Filament\Tables\Actions\Action;
 use Illuminate\Support\Facades\Auth;
+use Filament\Tables\Actions\BulkAction;
 use Filament\Forms\Components\TagsInput;
 use Filament\Notifications\Notification;
 use Filament\Forms\Components\DatePicker;
@@ -185,6 +187,14 @@ class ProxyDoctorResource extends Resource
                 BadgeColumn::make('languages_spoken')->label('Langues')->separator(', ')->limit(30),
                 TextColumn::make('rating')->label('Note')->sortable(),
                 TextColumn::make('primaryHospital.name')->label('Hôpital')->toggleable(),
+                BadgeColumn::make('status')
+                ->label('Statut')
+                ->formatStateUsing(fn ($state) => $state ? 'Actif' : 'Inactif')
+                ->colors([
+                    'success' => fn ($state) => (int)$state === 1,
+                    'danger'  => fn ($state) => (int)$state === 0,
+                ])
+                ->sortable(),
                 TextColumn::make('academicTitle.label')->label('Titre académique')->toggleable(),
                 TextColumn::make('created_at')->dateTime('Y-m-d H:i')->label('Créé le')->sortable()
                 ->toggleable(isToggledHiddenByDefault: true),
@@ -205,6 +215,23 @@ class ProxyDoctorResource extends Resource
                     // $record->schedules()->delete();
                     });
                 }),
+                Action::make('toggleStatus')
+                    ->label(fn (ProxyDoctor $record) => $record->status ? 'Désactiver' : 'Activer')
+                    ->icon(fn (ProxyDoctor $record) => $record->status ? 'heroicon-o-x-circle' : 'heroicon-o-check-circle')
+                    ->color(fn (ProxyDoctor $record) => $record->status ? 'danger' : 'success')
+                    ->requiresConfirmation()
+                    ->action(function (ProxyDoctor $record) {
+                        $record->update([
+                            'status'     => $record->status ? 0 : 1,
+                            'updated_by' => Auth::id(),
+                        ]);
+
+                        Notification::make()
+                            ->title('Statut mis à jour')
+                            ->body("{$record->fullname} est maintenant " . ($record->status ? 'actif' : 'inactif') . '.')
+                            ->success()
+                            ->send();
+                    }),
             ])
             ->defaultSort('id','desc')
             ->bulkActions([
@@ -234,6 +261,43 @@ class ProxyDoctorResource extends Resource
                     ->visible(fn () => Auth::user()?->hasAnyRole(['super_admin','admin']) ?? false),
                                     Tables\Actions\DeleteBulkAction::make(),
                                 ]),
+                                BulkAction::make('bulkActivate')
+                ->label('Activer la sélection')
+                ->icon('heroicon-o-check-circle')
+                ->color('success')
+                ->requiresConfirmation()
+                ->action(function (Collection $records) {
+                    $ids = $records->pluck('id')->all();
+                    ProxyDoctor::whereIn('id', $ids)->update([
+                        'status'     => 1,
+                        'updated_by' => Auth::id(),
+                    ]);
+
+                    Notification::make()
+                        ->title('Statut mis à jour')
+                        ->body(count($ids) . ' médecin(s) activé(s).')
+                        ->success()
+                        ->send();
+                }),
+
+                BulkAction::make('bulkDeactivate')
+                    ->label('Désactiver la sélection')
+                    ->icon('heroicon-o-x-circle')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->action(function (Collection $records) {
+                        $ids = $records->pluck('id')->all();
+                        ProxyDoctor::whereIn('id', $ids)->update([
+                            'status'     => 0,
+                            'updated_by' => Auth::id(),
+                        ]);
+
+                        Notification::make()
+                            ->title('Statut mis à jour')
+                            ->body(count($ids) . ' médecin(s) désactivé(s).')
+                            ->success()
+                            ->send();
+                    }),
                             ]);
     }
 
