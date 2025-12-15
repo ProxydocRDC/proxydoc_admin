@@ -12,6 +12,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Tables\Columns\{TextColumn, BadgeColumn};
 use Illuminate\Support\Facades\Auth;
+use Filament\Forms\Components\Hidden;
 
 class SubscriptionMemberResource extends \Filament\Resources\Resource
 {

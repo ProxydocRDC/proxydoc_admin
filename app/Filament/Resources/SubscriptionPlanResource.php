@@ -12,6 +12,7 @@ use App\Filament\Resources\SubscriptionPlanResource\Pages;
 use Filament\Tables\Columns\{TextColumn, BadgeColumn, IconColumn};
 use Filament\Forms\Components\{Group, Section, TextInput, Textarea, Toggle, Select};
 use Illuminate\Support\Facades\Auth;
+use Filament\Forms\Components\Hidden;
 
 class SubscriptionPlanResource extends \Filament\Resources\Resource
 {
