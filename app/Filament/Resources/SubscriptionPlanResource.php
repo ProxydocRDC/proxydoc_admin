@@ -11,6 +11,7 @@ use Illuminate\Database\Query\Builder;
 use App\Filament\Resources\SubscriptionPlanResource\Pages;
 use Filament\Tables\Columns\{TextColumn, BadgeColumn, IconColumn};
 use Filament\Forms\Components\{Group, Section, TextInput, Textarea, Toggle, Select};
+use Illuminate\Support\Facades\Auth;
 
 class SubscriptionPlanResource extends \Filament\Resources\Resource
 {
@@ -25,8 +26,9 @@ class SubscriptionPlanResource extends \Filament\Resources\Resource
     {
         return $form->schema([
             Group::make()->schema([
-                Section::make('Plan')->schema([
-
+                Section::make('Plan')->schema([ 
+                    Hidden::make('created_by')->default(fn() => Auth::id()),
+                    Hidden::make('updated_by')->default(fn() => Auth::id())->dehydrated(),
                     Select::make('type')->label('Type')
                         ->options([
                             'personal'   => 'Personnel',

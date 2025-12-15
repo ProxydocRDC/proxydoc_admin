@@ -11,6 +11,7 @@ use Filament\Forms\Get;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Tables\Columns\{TextColumn, BadgeColumn};
+use Illuminate\Support\Facades\Auth;
 
 class SubscriptionMemberResource extends \Filament\Resources\Resource
 {
@@ -26,6 +27,8 @@ class SubscriptionMemberResource extends \Filament\Resources\Resource
         return $form->schema([
             Group::make()->schema([
                 Section::make('Membre')->schema([
+                      Hidden::make('created_by')->default(fn() => Auth::id()),
+                    Hidden::make('updated_by')->default(fn() => Auth::id())->dehydrated(),
                     Select::make('subscription_id')->label('Abonnement')->columnSpan(4)
                         ->relationship('subscription', 'id')->searchable()->preload()->required(),
 

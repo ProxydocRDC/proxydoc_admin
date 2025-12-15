@@ -64,9 +64,9 @@ class ChemProductResource extends Resource
                                 ->columnSpan(4),
 
                             TextInput::make('generic_name')
-                                ->label('Nom générique')
+                                ->label('DCI ( Dénomination commune internationale)')
                                 ->maxLength(500)
-                                ->helperText('Nom générique du produit (ex: Paracétamol).')
+                                ->helperText('DCI ( Dénomination commune internationale) du produit (ex: Paracétamol).')
                                 ->columnSpan(4),
 
                             TextInput::make('brand_name')
