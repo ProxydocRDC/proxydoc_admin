@@ -316,7 +316,7 @@ class ListChemProducts extends ListRecords
             Actions\Action::make('toggleView')
                 ->label(fn() => $this->viewMode === 'table' ? 'Vue grille' : 'Vue tableau')
                 ->icon(fn() => $this->viewMode === 'table' ? 'heroicon-o-squares-2x2' : 'heroicon-o-table-cells')
-                ->color('gray')
+                ->color('gray')->hidden()
                 ->action(function () {
                     $this->viewMode = $this->viewMode === 'table' ? 'grid' : 'table';
                 }),
