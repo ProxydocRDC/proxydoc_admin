@@ -19,6 +19,7 @@ use Filament\Forms\Components\DatePicker;
 use App\Filament\Resources\ProxyDoctorResource\Pages;
 use Filament\Tables\Columns\{TextColumn, ToggleColumn, BadgeColumn};
 use Filament\Forms\Components\{Group, Section, TextInput, Textarea, Select, Hidden, Toggle, Repeater};
+use Illuminate\Database\Eloquent\Builder;
 
 class ProxyDoctorResource extends Resource
 {
@@ -46,7 +47,11 @@ class ProxyDoctorResource extends Resource
                     //     ->columnSpan(6),
                         Select::make('user_id')
                             ->label('Utilisateur (compte)')
-                            ->relationship(name: 'user', titleAttribute: 'id') // base technique
+                            ->relationship(
+                                name: 'user',
+                                titleAttribute: 'id',
+                                modifyQueryUsing: fn (Builder $query) => $query->where('default_role', '!=', '2'),
+                            ) // base technique + filtre sur default_role
                             ->getOptionLabelFromRecordUsing(function (\App\Models\User $u): string {
                                 // choisis l’ordre de priorité selon ton schéma
                                 $full = $u->fullname ?? null;   // si tu as bien une colonne 'fullname'
