@@ -18,6 +18,293 @@ class ListChemProducts extends ListRecords
 {
     protected static string $resource = ChemProductResource::class;
 
+    public string $viewMode = 'table'; // 'table' ou 'grid'
+
+    protected function getHeaderWidgets(): array
+    {
+        return [];
+    }
+
+    public function getView(): string
+    {
+        if ($this->viewMode === 'grid') {
+            return 'filament.resources.chem-product-resource.pages.list-chem-products-grid';
+        }
+        return parent::getView();
+    }
+
+    public function getTableFilterState(?string $name = null): ?array
+    {
+        $state = parent::getTableFilterState($name);
+        
+        // Si un nom de filtre spécifique est demandé
+        if ($name !== null) {
+            // S'assurer que c'est toujours un array ou null
+            if (is_string($state)) {
+                // Si c'est une string, c'est probablement pour has_image
+                if ($name === 'has_image') {
+                    if ($state === 'true' || $state === '1') {
+                        return ['value' => true];
+                    } elseif ($state === 'false' || $state === '0') {
+                        return ['value' => false];
+                    }
+                    return null;
+                }
+                return null;
+            }
+            return is_array($state) ? $state : null;
+        }
+        
+        // Si aucun nom spécifique, retourner tous les filtres
+        // S'assurer que $state est toujours un array
+        if (!is_array($state)) {
+            $state = [];
+        }
+        
+        // Corriger le filtre has_image qui peut être une string au lieu d'un array
+        // TernaryFilter attend un array avec 'value' => true/false/null
+        if (isset($state['has_image'])) {
+            if (is_string($state['has_image'])) {
+                if ($state['has_image'] === 'true' || $state['has_image'] === '1') {
+                    $state['has_image'] = ['value' => true];
+                } elseif ($state['has_image'] === 'false' || $state['has_image'] === '0') {
+                    $state['has_image'] = ['value' => false];
+                } else {
+                    $state['has_image'] = null;
+                }
+            } elseif (!is_array($state['has_image'])) {
+                // Si ce n'est pas un array, on le convertit ou on le supprime
+                if (is_bool($state['has_image'])) {
+                    $state['has_image'] = ['value' => $state['has_image']];
+                } else {
+                    unset($state['has_image']);
+                }
+            } elseif (is_array($state['has_image']) && !isset($state['has_image']['value'])) {
+                // Si c'est un array mais sans 'value', on le supprime
+                unset($state['has_image']);
+            }
+        }
+        
+        return $state;
+    }
+
+    public function updateStatus($productId, $status)
+    {
+        $product = ChemProduct::find($productId);
+        if ($product) {
+            $product->status = $status;
+            $product->save();
+            
+            Notification::make()
+                ->title('Statut mis à jour')
+                ->body("Le produit « {$product->name} » est maintenant " . ($status == 1 ? 'Actif' : 'Inactif') . '.')
+                ->success()
+                ->send();
+        }
+    }
+
+    public function togglePrescription($productId)
+    {
+        $product = ChemProduct::find($productId);
+        if ($product) {
+            $product->with_prescription = (int) ! (bool) $product->with_prescription;
+            $product->save();
+            
+            Notification::make()
+                ->title('Statut mis à jour')
+                ->body(
+                    $product->with_prescription
+                    ? 'Ordonnance requise: OUI.'
+                    : 'Ordonnance requise: NON.'
+                )
+                ->success()
+                ->send();
+        }
+    }
+
+    public function clearImages($productId, $deleteS3 = false)
+    {
+        $product = ChemProduct::find($productId);
+        if ($product && !empty($product->images)) {
+            $keys = is_array($product->images) ? $product->images : [];
+            $deleted = 0;
+
+            if ($deleteS3 && $keys) {
+                $disk = Storage::disk('s3');
+                foreach ($keys as $k) {
+                    $key = preg_match('#^https?://#i', (string) $k)
+                        ? ltrim(parse_url($k, PHP_URL_PATH) ?? '', '/')
+                        : ltrim((string) $k, '/');
+
+                    $bucket = config('filesystems.disks.s3.bucket');
+                    if ($bucket && Str::startsWith($key, $bucket . '/')) {
+                        $key = substr($key, strlen($bucket) + 1);
+                    }
+
+                    try {
+                        if ($key) {
+                            $disk->delete($key);
+                            $deleted++;
+                        }
+                    } catch (\Throwable $e) {
+                        // continue
+                    }
+                }
+            }
+
+            $product->images = [];
+            $product->save();
+            
+            Notification::make()
+                ->title('Images vidées')
+                ->body(($deleted ? "Fichiers S3 supprimés: {$deleted}. " : '') . 'La colonne "images" est maintenant vide.')
+                ->success()
+                ->send();
+        }
+    }
+
+    // Méthodes spécifiques pour la vue grille - utilisent les actions Filament de la vue tableau
+    public function viewImagesGrid($productId, $productName)
+    {
+        // Utiliser l'action Filament de la vue tableau
+        $this->mountTableAction('viewImages', $productId);
+    }
+
+    public function clearImagesGrid($productId)
+    {
+        // Utiliser l'action Filament de la vue tableau
+        $this->mountTableAction('clearImages', $productId);
+    }
+
+    public function viewDetailsGrid($productId, $productName)
+    {
+        // Utiliser l'action Filament de la vue tableau
+        $this->mountTableAction('viewDetails', $productId);
+    }
+
+    public function delete($productId)
+    {
+        $product = ChemProduct::find($productId);
+        if ($product) {
+            $name = $product->name;
+            $product->delete();
+            
+            Notification::make()
+                ->title('Produit supprimé')
+                ->body("Le produit « {$name} » a été supprimé.")
+                ->success()
+                ->send();
+        }
+    }
+
+    public function exportCsv()
+    {
+        $supplierId = Auth::user()?->supplier?->id;
+        $query      = ChemProduct::query()
+            ->when($supplierId, fn($q) => $q->where('supplier_id', $supplierId));
+
+        $disk = Storage::disk('local');
+        $dir  = 'tmp';
+        $disk->makeDirectory($dir);
+
+        $name = 'exports/products_' . now()->format('Ymd_His') . '.csv';
+        $path = $disk->path($dir . '/' . basename($name));
+
+        $writer = SimpleExcelWriter::create($path)->addHeader([
+            'name', 'generic_name', 'brand_name',
+            'category_code', 'manufacturer_code', 'form_name',
+            'strength', 'unit', 'packaging', 'atc_code',
+            'price_ref', 'with_prescription', 'shelf_life_months',
+            'indications', 'contraindications', 'side_effects',
+            'storage_conditions', 'images', 'description', 'composition',
+        ]);
+
+        $query->orderBy('id')->chunk(1000, function ($rows) use ($writer) {
+            $writer->addRows($rows->map(function (ChemProduct $p) {
+                return [
+                    'name'               => $p->name,
+                    'generic_name'       => $p->generic_name,
+                    'brand_name'         => $p->brand_name,
+                    'category_code'      => optional($p->category)->code,
+                    'manufacturer_code'  => optional($p->manufacturer)->code,
+                    'form_name'          => optional($p->form)->name,
+                    'strength'           => $p->strength,
+                    'unit'               => $p->unit,
+                    'packaging'          => $p->packaging,
+                    'atc_code'           => $p->atc_code,
+                    'price_ref'          => $p->price_ref,
+                    'with_prescription'  => $p->with_prescription ? 1 : 0,
+                    'shelf_life_months'  => $p->shelf_life_months,
+                    'indications'        => $p->indications,
+                    'contraindications'  => $p->contraindications,
+                    'side_effects'       => $p->side_effects,
+                    'storage_conditions' => $p->storage_conditions,
+                    'images'             => is_array($p->images) ? implode('; ', $p->images) : (string) $p->images,
+                    'description'        => $p->description,
+                    'composition'        => $p->composition,
+                ];
+            })->all());
+        });
+
+        $writer->close();
+
+        return response()->download($path)->deleteFileAfterSend(true);
+    }
+
+    public function exportXlsx()
+    {
+        $supplierId = Auth::user()?->supplier?->id;
+        $query      = ChemProduct::query()
+            ->when($supplierId, fn($q) => $q->where('supplier_id', $supplierId));
+
+        $disk = Storage::disk('local');
+        $dir  = 'tmp';
+        $disk->makeDirectory($dir);
+
+        $name = 'exports/products_' . now()->format('Ymd_His') . '.xlsx';
+        $path = $disk->path($dir . '/' . basename($name));
+
+        $writer = SimpleExcelWriter::create($path)->addHeader([
+            'name', 'generic_name', 'brand_name',
+            'category_code', 'manufacturer_code', 'form_name',
+            'strength', 'unit', 'packaging', 'atc_code',
+            'price_ref', 'with_prescription', 'shelf_life_months',
+            'indications', 'contraindications', 'side_effects',
+            'storage_conditions', 'images', 'description', 'composition',
+        ]);
+
+        $query->orderBy('id')->chunk(1000, function ($rows) use ($writer) {
+            $writer->addRows($rows->map(function (ChemProduct $p) {
+                return [
+                    'name'               => $p->name,
+                    'generic_name'       => $p->generic_name,
+                    'brand_name'         => $p->brand_name,
+                    'category_code'      => optional($p->category)->code,
+                    'manufacturer_code'  => optional($p->manufacturer)->code,
+                    'form_name'          => optional($p->form)->name,
+                    'strength'           => $p->strength,
+                    'unit'               => $p->unit,
+                    'packaging'          => $p->packaging,
+                    'atc_code'           => $p->atc_code,
+                    'price_ref'          => $p->price_ref,
+                    'with_prescription'  => $p->with_prescription ? 1 : 0,
+                    'shelf_life_months'  => $p->shelf_life_months,
+                    'indications'        => $p->indications,
+                    'contraindications'  => $p->contraindications,
+                    'side_effects'       => $p->side_effects,
+                    'storage_conditions' => $p->storage_conditions,
+                    'images'             => is_array($p->images) ? implode('; ', $p->images) : (string) $p->images,
+                    'description'        => $p->description,
+                    'composition'        => $p->composition,
+                ];
+            })->all());
+        });
+
+        $writer->close();
+
+        return response()->download($path)->deleteFileAfterSend(true);
+    }
+
     /** En-têtes attendues dans le fichier importé */
     public const REQUIRED_HEADERS = [
         'code', 'label', 'description', 'status', 'category_code', 'manufacturer_code', 'price', 'currency',
@@ -26,10 +313,66 @@ class ListChemProducts extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
+            Actions\Action::make('toggleView')
+                ->label(fn() => $this->viewMode === 'table' ? 'Vue grille' : 'Vue tableau')
+                ->icon(fn() => $this->viewMode === 'table' ? 'heroicon-o-squares-2x2' : 'heroicon-o-table-cells')
+                ->color('gray')
+                ->action(function () {
+                    $this->viewMode = $this->viewMode === 'table' ? 'grid' : 'table';
+                }),
             Actions\CreateAction::make()
                 ->label('Ajouter un produit')
                 ->icon('heroicon-o-plus-circle')
                 ->color('success'),
+            Actions\Action::make('downloadTemplate')
+                ->label('Télécharger le modèle')
+                ->icon('heroicon-m-arrow-down-tray')
+                ->color('danger')
+                ->url(fn() => route('products.template'))
+                ->openUrlInNewTab()
+                ->tooltip('Modèle avec en-têtes (et exemple) pour l\'import des produits'),
+            Actions\Action::make('importProducts')
+                ->label('Importer')
+                ->icon('heroicon-m-arrow-up-tray')
+                ->form([
+                    \Filament\Forms\Components\FileUpload::make('file')
+                        ->label('Fichier CSV/XLSX')
+                        ->required()
+                        ->disk('local')
+                        ->directory('imports')
+                        ->acceptedFileTypes([
+                            'text/csv',
+                            'text/plain',
+                            'application/vnd.ms-excel',
+                            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                        ])
+                        ->preserveFilenames()
+                        ->downloadable()
+                        ->helperText('Utilise des entêtes : name, generic_name, brand_name, price_ref (obligatoires). Optionnels : category_code, manufacturer_name, form_name, sku, barcode, strength, dosage, unit, stock, min_stock, price_sale, price_purchase, description, is_active.'),
+                ])
+                ->action(function (array $data) {
+                    $path = $data['file'] ?? null;
+                    if (!$path || !Storage::disk('local')->exists($path)) {
+                        Notification::make()->title('Fichier introuvable')->danger()->send();
+                        return;
+                    }
+                    // Utiliser l'importeur existant
+                    try {
+                        $importer = new \App\Imports\ChemProductsImport();
+                        \Maatwebsite\Excel\Facades\Excel::import($importer, Storage::disk('local')->path($path));
+                        Notification::make()
+                            ->title('Import terminé')
+                            ->body("Lignes importées : " . ($importer->created ?? 0))
+                            ->success()
+                            ->send();
+                    } catch (\Exception $e) {
+                        Notification::make()
+                            ->title('Erreur lors de l\'import')
+                            ->body($e->getMessage())
+                            ->danger()
+                            ->send();
+                    }
+                }),
             // 🔽 Import Filament, avec notre importeur + bouton "Modèle" dans le modal
             // ImportAction::make()
             //     ->label('Importer (Excel/CSV)')
