@@ -50,7 +50,7 @@ class ProxyDoctorResource extends Resource
                             ->relationship(
                                 name: 'user',
                                 titleAttribute: 'id',
-                                modifyQueryUsing: fn (Builder $query) => $query->where('default_role', '!=', '2'),
+                                modifyQueryUsing: fn (Builder $query) => $query->where('default_role', '!=',2),
                             ) // base technique + filtre sur default_role
                             ->getOptionLabelFromRecordUsing(function (\App\Models\User $u): string {
                                 // choisis l’ordre de priorité selon ton schéma
