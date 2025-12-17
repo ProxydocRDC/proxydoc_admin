@@ -323,6 +323,14 @@ class ChemProductResource extends Resource
                     ->toggleable()
                     ->searchable(),
 
+                BadgeColumn::make('category.name')
+                    ->label('Catégorie')
+                    ->colors([
+                        'primary' => fn($state) => !empty($state),
+                    ])
+                    ->toggleable()
+                    ->searchable(),
+
                 TextColumn::make('form.name')
                     ->label('Forme')
                     ->toggleable(),
@@ -445,6 +453,54 @@ class ChemProductResource extends Resource
             ])
             ->actions([
                 ActionGroup::make([
+                    Action::make('viewDetails')
+                        ->label('Voir les détails')
+                        ->icon('heroicon-m-information-circle')
+                        ->color('info')
+                        ->modalHeading(fn($record) => 'Détails du produit : ' . $record->name)
+                        ->modalContent(function ($record) {
+                            $html = '<div class="space-y-4 p-4">';
+                            $html .= '<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">';
+                            $html .= '<tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">';
+                            
+                            // Informations de base
+                            $html .= '<tr><td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white w-1/3">Nom commercial</td><td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">' . htmlspecialchars($record->name ?? '—') . '</td></tr>';
+                            $html .= '<tr><td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">DCI</td><td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">' . htmlspecialchars($record->generic_name ?? '—') . '</td></tr>';
+                            $html .= '<tr><td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">Marque</td><td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">' . htmlspecialchars($record->brand_name ?? '—') . '</td></tr>';
+                            $html .= '<tr><td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">Catégorie</td><td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">' . ($record->category ? htmlspecialchars($record->category->name) : '—') . '</td></tr>';
+                            $html .= '<tr><td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">Fabricant</td><td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">' . ($record->manufacturer ? htmlspecialchars($record->manufacturer->name) : '—') . '</td></tr>';
+                            $html .= '<tr><td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">Forme galénique</td><td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">' . ($record->form ? htmlspecialchars($record->form->name) : '—') . '</td></tr>';
+                            
+                            // Spécifications
+                            $html .= '<tr><td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">Dosage</td><td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">' . ($record->strength ? htmlspecialchars($record->strength . ' ' . ($record->unit ?? '')) : '—') . '</td></tr>';
+                            $html .= '<tr><td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">Conditionnement</td><td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">' . htmlspecialchars($record->packaging ?? '—') . '</td></tr>';
+                            $html .= '<tr><td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">Code ATC</td><td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">' . htmlspecialchars($record->atc_code ?? '—') . '</td></tr>';
+                            $html .= '<tr><td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">Prix de référence</td><td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">' . ($record->price_ref ? number_format((float) $record->price_ref, 2, '.', ' ') . ' ' . ($record->currency ?? 'USD') : '—') . '</td></tr>';
+                            $html .= '<tr><td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">Avec ordonnance</td><td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">' . (($record->with_prescription ?? false) ? 'Oui' : 'Non') . '</td></tr>';
+                            $html .= '<tr><td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">Durée de conservation</td><td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">' . ($record->shelf_life_months ? $record->shelf_life_months . ' mois' : '—') . '</td></tr>';
+                            $html .= '<tr><td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">Statut</td><td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">' . (($record->status ?? 0) == 1 ? '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">Actif</span>' : '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">Inactif</span>') . '</td></tr>';
+                            
+                            // Textes médicaux
+                            $html .= '<tr><td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">Indications</td><td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">' . htmlspecialchars($record->indications ?? '—') . '</td></tr>';
+                            $html .= '<tr><td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">Contre-indications</td><td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">' . htmlspecialchars($record->contraindications ?? '—') . '</td></tr>';
+                            $html .= '<tr><td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">Effets secondaires</td><td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">' . htmlspecialchars($record->side_effects ?? '—') . '</td></tr>';
+                            $html .= '<tr><td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">Conditions de stockage</td><td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">' . htmlspecialchars($record->storage_conditions ?? '—') . '</td></tr>';
+                            $html .= '<tr><td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">Description</td><td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">' . htmlspecialchars($record->description ?? '—') . '</td></tr>';
+                            $html .= '<tr><td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">Composition</td><td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">' . htmlspecialchars($record->composition ?? '—') . '</td></tr>';
+                            
+                            // Métadonnées
+                            $html .= '<tr><td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">Créé par</td><td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">' . ($record->creator ? htmlspecialchars($record->creator->name ?? '—') : '—') . '</td></tr>';
+                            $html .= '<tr><td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">Créé le</td><td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">' . ($record->created_at ? $record->created_at->format('d/m/Y H:i') : '—') . '</td></tr>';
+                            $html .= '<tr><td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">Modifié le</td><td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">' . ($record->updated_at ? $record->updated_at->format('d/m/Y H:i') : '—') . '</td></tr>';
+                            
+                            $html .= '</tbody></table>';
+                            $html .= '</div>';
+                            
+                            return new \Illuminate\Support\HtmlString($html);
+                        })
+                        ->modalWidth('4xl')
+                        ->modalSubmitAction(false)
+                        ->modalCancelActionLabel('Fermer'),
                     Action::make('viewImages')
                         ->label('Voir les images')
                         ->icon('heroicon-m-photo')
@@ -465,14 +521,14 @@ class ChemProductResource extends Resource
                                 return new \Illuminate\Support\HtmlString($html);
                             }
 
-                            $html = '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">';
+                            $html = '<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 p-4">';
                             foreach ($imageUrls as $index => $url) {
                                 $html .= '<div class="relative group">';
                                 $html .= '<a href="' . htmlspecialchars($url) . '" target="_blank" rel="noopener noreferrer" class="block">';
                                 $html .= '<img src="' . htmlspecialchars($url) . '" alt="Image ' . ($index + 1) . '" class="w-full h-64 object-cover rounded-lg shadow-md hover:shadow-xl transition-shadow cursor-pointer" loading="lazy">';
                                 $html .= '</a>';
                                 $html .= '<div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-opacity rounded-lg flex items-center justify-center">';
-                                $html .= '<span class="text-white opacity-0 group-hover:opacity-100 text-sm font-medium">Cliquer pour agrandir</span>';
+                                $html .= '<span class="text-white opacity-0 group-hover:opacity-100 text-xs font-medium">Cliquer pour agrandir</span>';
                                 $html .= '</div>';
                                 $html .= '</div>';
                             }
@@ -562,11 +618,13 @@ class ChemProductResource extends Resource
                 ->icon('heroicon-m-arrow-down-tray')
                 ->color('danger')
                 ->url(fn() => route('products.template')) // ou .csv
-                ->openUrlInNewTab()
-                ->tooltip('Modèle avec en-têtes (et exemple) pour l’import des produits'),
+                ->openUrlInNewTab()->hidden(true)
+                ->tooltip('Modèle avec en-têtes (et exemple) pour l\'import des produits'),
+                //->hidden(fn() => $this->getLivewire() instanceof \App\Filament\Resources\ChemProductResource\Pages\ListChemProducts && $this->getLivewire()->viewMode === 'table'),
             Tables\Actions\Action::make('importProducts')
-                ->label('Importer')
+                ->label('Importer')->hidden(true)
                 ->icon('heroicon-m-arrow-up-tray')
+               // ->hidden(fn() => $this->getLivewire() instanceof \App\Filament\Resources\ChemProductResource\Pages\ListChemProducts && $this->getLivewire()->viewMode === 'table')
                 ->form([
                     FileUpload::make('file')
                         ->label('Fichier CSV/XLSX')
