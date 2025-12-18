@@ -50,8 +50,13 @@ class ProxyDoctorResource extends Resource
                             ->relationship(
                                 name: 'user',
                                 titleAttribute: 'id',
-                                modifyQueryUsing: fn (Builder $query) => $query->where('default_role', '!=',2),
-                            ) // base technique + filtre sur default_role
+                                modifyQueryUsing: fn (Builder $query) => $query
+                                    ->where('default_role', '2') // uniquement les users avec default_role = 2
+                                    ->whereNotIn(
+                                        'id',
+                                        DB::table('proxy_doctors')->select('user_id')
+                                    ), // et qui ne sont pas encore dans proxy_doctors
+                            ) // base technique + filtre sur default_role et non déjà liés
                             ->getOptionLabelFromRecordUsing(function (\App\Models\User $u): string {
                                 // choisis l’ordre de priorité selon ton schéma
                                 $full = $u->fullname ?? null;   // si tu as bien une colonne 'fullname'
