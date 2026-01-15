@@ -78,11 +78,14 @@ class ProductEncodersTable extends BaseWidget
             $dateTo = null;
         }
 
-        // Générer une clé de cache unique
-        $cacheKey = 'products_modal_' . $userId . '_' . ($dateFrom ? $dateFrom->format('Y-m-d') : 'all') . '_' . ($dateTo ? $dateTo->format('Y-m-d') : 'all');
+        // Générer une clé de cache unique basée sur les filtres avec version
+        $cacheVersion = Cache::get('products_filter_cache_version', 1);
+        $dateFromStr = $dateFrom ? $dateFrom->format('Y-m-d') : 'all';
+        $dateToStr = $dateTo ? $dateTo->format('Y-m-d') : 'all';
+        $cacheKey = 'products_modal_' . $userId . '_' . $dateFromStr . '_' . $dateToStr . '_v' . $cacheVersion;
         
-        // Construire la requête de base pour compter le total (avec cache)
-        $total = Cache::remember($cacheKey . '_count', 300, function () use ($userId, $dateFrom, $dateTo) {
+        // Construire la requête de base pour compter le total (avec cache de 2 minutes)
+        $total = Cache::remember($cacheKey . '_count', 120, function () use ($userId, $dateFrom, $dateTo) {
             $baseQuery = ChemProduct::query()->where('created_by', $userId);
             
             if ($dateFrom) {
@@ -106,11 +109,11 @@ class ProductEncodersTable extends BaseWidget
             return new \Illuminate\Support\HtmlString($html);
         }
 
-        // Pagination côté base de données - charger seulement les 25 produits de la page actuelle (avec cache)
+        // Pagination côté base de données - charger seulement les 25 produits de la page actuelle (avec cache de 2 minutes)
         $offset = ($currentPage - 1) * $perPage;
         $pageCacheKey = $cacheKey . '_page_' . $currentPage;
         
-        $products = Cache::remember($pageCacheKey, 300, function () use ($userId, $dateFrom, $dateTo, $offset, $perPage) {
+        $products = Cache::remember($pageCacheKey, 120, function () use ($userId, $dateFrom, $dateTo, $offset, $perPage) {
             $query = ChemProduct::query()
                 ->where('created_by', $userId)
                 ->with(['category', 'manufacturer', 'form', 'creator', 'updater'])
@@ -142,6 +145,32 @@ class ProductEncodersTable extends BaseWidget
     public function getTableFilterState(?string $name = null): ?array
     {
         return parent::getTableFilterState($name);
+    }
+
+    protected function clearFilterCache(): void
+    {
+        // Utiliser un préfixe pour identifier les caches liés aux filtres
+        // On nettoie seulement les caches avec nos préfixes spécifiques
+        // Note: Laravel ne supporte pas le nettoyage par pattern, donc on utilise une approche pragmatique
+        
+        // Pour une meilleure performance, on pourrait utiliser Cache::tags() avec Redis
+        // Pour l'instant, on nettoie les caches les plus récents (dernières 24h)
+        // en utilisant un système de timestamp dans les clés
+        
+        // Solution optimisée : nettoyer seulement les caches liés aux filtres de date
+        // en utilisant un préfixe commun qu'on peut identifier
+        $cachePrefixes = [
+            'products_count_period_',
+            'products_modal_',
+            'export_excel_',
+        ];
+        
+        // Pour éviter de tout nettoyer, on utilise une clé de version de cache
+        // Quand les filtres changent, on incrémente la version
+        $cacheVersion = Cache::get('products_filter_cache_version', 1);
+        Cache::put('products_filter_cache_version', $cacheVersion + 1, 86400);
+        
+        // Les clés de cache incluront maintenant cette version pour invalidation automatique
     }
 
     public static function canView(): bool
@@ -231,25 +260,49 @@ class ProductEncodersTable extends BaseWidget
                 ->badge()
                 ->color(fn ($state) => $state > 0 ? 'warning' : 'gray')
                 ->getStateUsing(function ($record) {
-                    // Compter les produits dans la période filtrée
+                    // Compter les produits dans la période filtrée avec cache
                     try {
-                        $dateFilter = $this->tableFilters['date_range'] ?? null;
-                        $dateFrom = is_array($dateFilter) ? ($dateFilter['from'] ?? null) : null;
-                        $dateTo = is_array($dateFilter) ? ($dateFilter['to'] ?? null) : null;
-
-                        $query = ChemProduct::query()->where('created_by', $record->id);
+                        $dateFilterState = $this->getTableFilterState('date_range');
+                        $dateFrom = null;
+                        $dateTo = null;
                         
-                        if ($dateFrom) {
-                            $query->whereDate('created_at', '>=', $dateFrom);
+                        if (is_array($dateFilterState)) {
+                            $dateFrom = $dateFilterState['from'] ?? null;
+                            $dateTo = $dateFilterState['to'] ?? null;
+                            
+                            if ($dateFrom && is_string($dateFrom)) {
+                                $dateFrom = Carbon::parse($dateFrom);
+                            }
+                            if ($dateTo && is_string($dateTo)) {
+                                $dateTo = Carbon::parse($dateTo);
+                            }
                         }
-                        if ($dateTo) {
-                            $query->whereDate('created_at', '<=', $dateTo);
-                        }
-
-                        return $query->count();
+                        
+                        // Générer une clé de cache unique avec version
+                        $cacheVersion = Cache::get('products_filter_cache_version', 1);
+                        $cacheKey = 'products_count_period_' . $record->id . '_' . 
+                                   ($dateFrom ? $dateFrom->format('Y-m-d') : 'all') . '_' . 
+                                   ($dateTo ? $dateTo->format('Y-m-d') : 'all') . '_v' . $cacheVersion;
+                        
+                        return Cache::remember($cacheKey, 60, function () use ($record, $dateFrom, $dateTo) {
+                            $query = ChemProduct::query()->where('created_by', $record->id);
+                            
+                            if ($dateFrom) {
+                                $query->whereDate('created_at', '>=', $dateFrom);
+                            }
+                            if ($dateTo) {
+                                $query->whereDate('created_at', '<=', $dateTo);
+                            }
+                            
+                            return $query->count();
+                        });
                     } catch (\Exception $e) {
                         // Si les filtres ne sont pas encore disponibles, retourner le total
-                        return ChemProduct::query()->where('created_by', $record->id)->count();
+                        $cacheVersion = Cache::get('products_filter_cache_version', 1);
+                        $cacheKey = 'products_count_total_' . $record->id . '_v' . $cacheVersion;
+                        return Cache::remember($cacheKey, 300, function () use ($record) {
+                            return ChemProduct::query()->where('created_by', $record->id)->count();
+                        });
                     }
                 })
                 ->default('—'),
@@ -283,6 +336,13 @@ class ProductEncodersTable extends BaseWidget
                     // On ne filtre pas la requête principale pour garder tous les utilisateurs
                     // Les dates seront utilisées dans getStateUsing pour calculer "Dans la période"
                     return $query;
+                })
+                ->live()
+                ->afterStateUpdated(function () {
+                    // Invalider le cache spécifique aux filtres quand ils changent
+                    $this->clearFilterCache();
+                    // Forcer le rafraîchissement du widget quand le filtre change
+                    $this->dispatch('$refresh');
                 }),
         ];
     }
@@ -380,7 +440,7 @@ class ProductEncodersTable extends BaseWidget
                         }
                     }
                     
-                    // Ajouter les actions d'export
+                    // Ajouter l'action d'export Excel
                     $actions[] = Action::make('exportExcel')
                         ->label('Exporter Excel')
                         ->icon('heroicon-o-arrow-down-tray')
@@ -388,15 +448,6 @@ class ProductEncodersTable extends BaseWidget
                         ->outlined()
                         ->action(function () use ($userId, $dateFrom, $dateTo) {
                             return $this->exportToExcel($userId, $dateFrom, $dateTo);
-                        });
-                    
-                    $actions[] = Action::make('exportPdf')
-                        ->label('Exporter PDF')
-                        ->icon('heroicon-o-document-arrow-down')
-                        ->color('danger')
-                        ->outlined()
-                        ->action(function () use ($userId, $dateFrom, $dateTo) {
-                            return $this->exportToPdf($userId, $dateFrom, $dateTo);
                         });
                     
                     return $actions;
@@ -429,31 +480,6 @@ class ProductEncodersTable extends BaseWidget
                     return $this->exportToExcel($record->id, $dateFrom, $dateTo);
                 }),
             
-            Action::make('exportPdfTable')
-                ->label('PDF')
-                ->icon('heroicon-o-document-arrow-down')
-                ->color('danger')
-                ->button()
-                ->outlined()
-                ->action(function ($record) {
-                    $dateFrom = null;
-                    $dateTo = null;
-                    try {
-                        $dateFilterState = $this->getTableFilterState('date_range');
-                        if (is_array($dateFilterState)) {
-                            $dateFrom = $dateFilterState['from'] ?? null;
-                            $dateTo = $dateFilterState['to'] ?? null;
-                            if ($dateFrom && is_string($dateFrom)) {
-                                $dateFrom = Carbon::parse($dateFrom);
-                            }
-                            if ($dateTo && is_string($dateTo)) {
-                                $dateTo = Carbon::parse($dateTo);
-                            }
-                        }
-                    } catch (\Exception $e) {}
-                    
-                    return $this->exportToPdf($record->id, $dateFrom, $dateTo);
-                }),
         ];
     }
 
@@ -550,50 +576,4 @@ class ProductEncodersTable extends BaseWidget
         return response()->download($path, $fileName);
     }
 
-    public function exportToPdf(int $userId, ?Carbon $dateFrom = null, ?Carbon $dateTo = null)
-    {
-        $user = User::find($userId);
-        $userName = $user ? ($user->firstname . ' ' . $user->lastname) : 'Utilisateur';
-        
-        // Générer une clé de cache pour l'export PDF
-        $cacheKey = 'export_pdf_' . $userId . '_' . ($dateFrom ? $dateFrom->format('Y-m-d') : 'all') . '_' . ($dateTo ? $dateTo->format('Y-m-d') : 'all');
-        
-        // Mettre en cache les produits (5 minutes)
-        $products = Cache::remember($cacheKey . '_products', 300, function () use ($userId, $dateFrom, $dateTo) {
-            $query = ChemProduct::query()
-                ->where('created_by', $userId)
-                ->with(['category', 'manufacturer', 'form'])
-                ->orderByDesc('created_at');
-
-            if ($dateFrom) {
-                $query->whereDate('created_at', '>=', $dateFrom);
-            }
-            if ($dateTo) {
-                $query->whereDate('created_at', '<=', $dateTo);
-            }
-
-            return $query->get();
-        });
-
-        // Générer le HTML pour le PDF
-        $html = view('filament.widgets.products-pdf', [
-            'products' => $products,
-            'userName' => $userName,
-            'dateFrom' => $dateFrom,
-            'dateTo' => $dateTo,
-        ])->render();
-
-        // Utiliser DomPDF si disponible, sinon retourner une réponse HTML téléchargeable
-        if (class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {
-            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html);
-            $fileName = 'produits_' . str_replace(' ', '_', $userName) . '_' . now()->format('Ymd_His') . '.pdf';
-            return $pdf->download($fileName);
-        } else {
-            // Fallback: retourner le HTML avec un en-tête pour téléchargement
-            $fileName = 'produits_' . str_replace(' ', '_', $userName) . '_' . now()->format('Ymd_His') . '.html';
-            return response($html)
-                ->header('Content-Type', 'text/html')
-                ->header('Content-Disposition', 'attachment; filename="' . $fileName . '"');
-        }
-    }
 }
