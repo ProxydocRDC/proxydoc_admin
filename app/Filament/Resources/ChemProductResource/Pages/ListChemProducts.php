@@ -9,6 +9,7 @@ use Filament\Actions\ImportAction;
 use Filament\Actions\Imports\Models\Import;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -24,6 +25,7 @@ class ListChemProducts extends ListRecords
     {
         return [];
     }
+
 
     public function getView(): string
     {
@@ -312,7 +314,32 @@ class ListChemProducts extends ListRecords
 
     protected function getHeaderActions(): array
     {
-        return [
+        $actions = [];
+        
+        // Ajouter un message informatif si une plage de dates est sélectionnée
+        try {
+            $dateFilter = $this->tableFilters['created_at'] ?? null;
+            $dateFrom = is_array($dateFilter) ? ($dateFilter['from'] ?? null) : null;
+            $dateTo = is_array($dateFilter) ? ($dateFilter['to'] ?? null) : null;
+
+            if ($dateFrom || $dateTo) {
+                $fromText = $dateFrom ? Carbon::parse($dateFrom)->format('d/m/Y') : 'Début';
+                $toText = $dateTo ? Carbon::parse($dateTo)->format('d/m/Y') : 'Fin';
+                
+                // Ajouter une action informative (non cliquable)
+                $actions[] = Actions\Action::make('dateRangeInfo')
+                    ->label("Période : {$fromText} - {$toText}")
+                    ->icon('heroicon-o-calendar')
+                    ->color('info')
+                    ->disabled()
+                    ->extraAttributes(['class' => 'cursor-default opacity-100']);
+            }
+        } catch (\Exception $e) {
+            // Ignorer les erreurs si les filtres ne sont pas encore disponibles
+        }
+        
+        // Ajouter les actions existantes
+        $actions = array_merge($actions, [
             Actions\Action::make('toggleView')
                 ->label(fn() => $this->viewMode === 'table' ? 'Vue grille' : 'Vue tableau')
                 ->icon(fn() => $this->viewMode === 'table' ? 'heroicon-o-squares-2x2' : 'heroicon-o-table-cells')
@@ -527,7 +554,9 @@ class ListChemProducts extends ListRecords
                 ->icon('heroicon-o-arrow-down-tray')
                 ->color('danger')
                 ->button(),
-        ];
+        ]);
+        
+        return $actions;
     }
     /**
      * Bouton "Modèle (en-têtes lisibles)" — CSV

@@ -12,6 +12,7 @@ class Dashboard extends BaseDashboard
         \App\Filament\Resources\MainPaymentResource\Widgets\PaymentsStats::class,
         \App\Filament\Resources\MainPaymentResource\Widgets\PaymentsByMethodChart::class,
         \App\Filament\Resources\MainPaymentResource\Widgets\PaidByCurrencyTable::class, // plein écran
+        \App\Filament\Widgets\ProductEncodersTable::class, // Utilisateurs ayant encodé des produits
     ];
 }
 

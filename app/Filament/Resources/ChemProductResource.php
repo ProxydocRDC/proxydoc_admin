@@ -450,7 +450,43 @@ class ChemProductResource extends Resource
 
             TrashedFilter::make(),
 
+            Filter::make('created_at')
+                ->label('Date de création')
+                ->form([
+                    \Filament\Forms\Components\DatePicker::make('from')
+                        ->label('Du')
+                        ->displayFormat('d/m/Y')
+                        ->native(false),
+                    \Filament\Forms\Components\DatePicker::make('to')
+                        ->label('Au')
+                        ->displayFormat('d/m/Y')
+                        ->native(false),
+                ])
+                ->query(function (Builder $query, array $data): Builder {
+                    return $query
+                        ->when(
+                            $data['from'] ?? null,
+                            fn (Builder $query, $date): Builder => $query->whereDate('created_at', '>=', $date),
+                        )
+                        ->when(
+                            $data['to'] ?? null,
+                            fn (Builder $query, $date): Builder => $query->whereDate('created_at', '<=', $date),
+                        );
+                })
+                ->indicateUsing(function (array $data): array {
+                    $indicators = [];
+                    if ($data['from'] ?? null) {
+                        $indicators[] = 'Du: ' . \Carbon\Carbon::parse($data['from'])->format('d/m/Y');
+                    }
+                    if ($data['to'] ?? null) {
+                        $indicators[] = 'Au: ' . \Carbon\Carbon::parse($data['to'])->format('d/m/Y');
+                    }
+                    return $indicators;
+                }),
+
             ])
+            ->contentHeight('70vh')
+            ->poll('30s')
             ->actions([
                 ActionGroup::make([
                     Action::make('viewDetails')

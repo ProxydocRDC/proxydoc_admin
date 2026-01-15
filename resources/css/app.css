@@ -9,3 +9,60 @@
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
+
+/* Scroll vertical et horizontal avec en-tête fixe pour les tableaux Filament */
+.fi-ta-content,
+.fi-ta-table-wrapper {
+    overflow-x: auto;
+}
+
+/* En-tête fixe lors du scroll vertical */
+.fi-ta-header,
+.fi-ta-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.fi-ta-header th,
+.fi-ta-table thead th {
+    background-color: rgb(249, 250, 251);
+    border-bottom: 2px solid rgb(229, 231, 235);
+    position: sticky;
+    top: 0;
+}
+
+.dark .fi-ta-header th,
+.dark .fi-ta-table thead th {
+    background-color: rgb(31, 41, 55);
+    border-bottom: 2px solid rgb(55, 65, 81);
+}
+
+/* Style pour le scrollbar */
+.fi-ta-content::-webkit-scrollbar,
+.fi-ta-table-wrapper::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.fi-ta-content::-webkit-scrollbar-track,
+.fi-ta-table-wrapper::-webkit-scrollbar-track {
+    background: rgb(243, 244, 246);
+    border-radius: 4px;
+}
+
+.dark .fi-ta-content::-webkit-scrollbar-track,
+.dark .fi-ta-table-wrapper::-webkit-scrollbar-track {
+    background: rgb(31, 41, 55);
+}
+
+.fi-ta-content::-webkit-scrollbar-thumb,
+.fi-ta-table-wrapper::-webkit-scrollbar-thumb {
+    background: rgb(156, 163, 175);
+    border-radius: 4px;
+}
+
+.fi-ta-content::-webkit-scrollbar-thumb:hover,
+.fi-ta-table-wrapper::-webkit-scrollbar-thumb:hover {
+    background: rgb(107, 114, 128);
+}
