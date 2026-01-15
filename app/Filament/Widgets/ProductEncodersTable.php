@@ -26,6 +26,9 @@ class ProductEncodersTable extends BaseWidget
     protected static ?string $heading = 'Utilisateurs ayant encodé des produits';
     protected int|string|array $columnSpan = 'full';
     
+    // Désactiver le lazy loading pour que le widget se mette à jour correctement
+    protected static bool $isLazy = false;
+    
     public ?int $modalUserId = null;
     public int $modalPage = 1;
     
@@ -149,28 +152,12 @@ class ProductEncodersTable extends BaseWidget
 
     protected function clearFilterCache(): void
     {
-        // Utiliser un préfixe pour identifier les caches liés aux filtres
-        // On nettoie seulement les caches avec nos préfixes spécifiques
-        // Note: Laravel ne supporte pas le nettoyage par pattern, donc on utilise une approche pragmatique
-        
-        // Pour une meilleure performance, on pourrait utiliser Cache::tags() avec Redis
-        // Pour l'instant, on nettoie les caches les plus récents (dernières 24h)
-        // en utilisant un système de timestamp dans les clés
-        
-        // Solution optimisée : nettoyer seulement les caches liés aux filtres de date
-        // en utilisant un préfixe commun qu'on peut identifier
-        $cachePrefixes = [
-            'products_count_period_',
-            'products_modal_',
-            'export_excel_',
-        ];
-        
-        // Pour éviter de tout nettoyer, on utilise une clé de version de cache
-        // Quand les filtres changent, on incrémente la version
+        // Incrémenter la version du cache pour invalider tous les anciens caches
         $cacheVersion = Cache::get('products_filter_cache_version', 1);
         Cache::put('products_filter_cache_version', $cacheVersion + 1, 86400);
         
         // Les clés de cache incluront maintenant cette version pour invalidation automatique
+        // Cela permet de ne pas avoir à nettoyer manuellement chaque clé
     }
 
     public static function canView(): bool
@@ -261,6 +248,7 @@ class ProductEncodersTable extends BaseWidget
                 ->color(fn ($state) => $state > 0 ? 'warning' : 'gray')
                 ->getStateUsing(function ($record) {
                     // Compter les produits dans la période filtrée avec cache
+                    // Ne pas utiliser de cache pour cette colonne car elle doit se mettre à jour en temps réel
                     try {
                         $dateFilterState = $this->getTableFilterState('date_range');
                         $dateFrom = null;
@@ -278,31 +266,20 @@ class ProductEncodersTable extends BaseWidget
                             }
                         }
                         
-                        // Générer une clé de cache unique avec version
-                        $cacheVersion = Cache::get('products_filter_cache_version', 1);
-                        $cacheKey = 'products_count_period_' . $record->id . '_' . 
-                                   ($dateFrom ? $dateFrom->format('Y-m-d') : 'all') . '_' . 
-                                   ($dateTo ? $dateTo->format('Y-m-d') : 'all') . '_v' . $cacheVersion;
+                        // Calculer directement sans cache pour une mise à jour en temps réel
+                        $query = ChemProduct::query()->where('created_by', $record->id);
                         
-                        return Cache::remember($cacheKey, 60, function () use ($record, $dateFrom, $dateTo) {
-                            $query = ChemProduct::query()->where('created_by', $record->id);
-                            
-                            if ($dateFrom) {
-                                $query->whereDate('created_at', '>=', $dateFrom);
-                            }
-                            if ($dateTo) {
-                                $query->whereDate('created_at', '<=', $dateTo);
-                            }
-                            
-                            return $query->count();
-                        });
+                        if ($dateFrom) {
+                            $query->whereDate('created_at', '>=', $dateFrom);
+                        }
+                        if ($dateTo) {
+                            $query->whereDate('created_at', '<=', $dateTo);
+                        }
+                        
+                        return $query->count();
                     } catch (\Exception $e) {
                         // Si les filtres ne sont pas encore disponibles, retourner le total
-                        $cacheVersion = Cache::get('products_filter_cache_version', 1);
-                        $cacheKey = 'products_count_total_' . $record->id . '_v' . $cacheVersion;
-                        return Cache::remember($cacheKey, 300, function () use ($record) {
-                            return ChemProduct::query()->where('created_by', $record->id)->count();
-                        });
+                        return ChemProduct::query()->where('created_by', $record->id)->count();
                     }
                 })
                 ->default('—'),
@@ -330,9 +307,10 @@ class ProductEncodersTable extends BaseWidget
                         ->afterStateUpdated(function () {
                             // Invalider le cache quand la date change
                             $this->clearFilterCache();
-                            // Forcer le rafraîchissement du widget
+                            // Forcer le rafraîchissement complet du widget
                             $this->dispatch('$refresh');
-                        }),
+                        })
+                        ->dehydrated(),
                     DatePicker::make('to')
                         ->label('Au')
                         ->displayFormat('d/m/Y')
@@ -341,14 +319,46 @@ class ProductEncodersTable extends BaseWidget
                         ->afterStateUpdated(function () {
                             // Invalider le cache quand la date change
                             $this->clearFilterCache();
-                            // Forcer le rafraîchissement du widget
+                            // Forcer le rafraîchissement complet du widget
                             $this->dispatch('$refresh');
-                        }),
+                        })
+                        ->dehydrated(),
                 ])
-                // Le filtre ne modifie pas la requête, il sert juste à stocker les dates pour les calculs
+                // Le filtre modifie la requête pour ne montrer que les utilisateurs ayant encodé dans la période
                 ->query(function (Builder $query, array $data): Builder {
-                    // On ne filtre pas la requête principale pour garder tous les utilisateurs
-                    // Les dates seront utilisées dans getStateUsing pour calculer "Dans la période"
+                    $dateFrom = $data['from'] ?? null;
+                    $dateTo = $data['to'] ?? null;
+                    
+                    // Si des dates sont sélectionnées, filtrer les utilisateurs
+                    if ($dateFrom || $dateTo) {
+                        $productsTable = (new ChemProduct())->getTable();
+                        $usersTable = (new User())->getTable();
+                        
+                        // Convertir les dates si elles sont des strings
+                        if ($dateFrom && is_string($dateFrom)) {
+                            $dateFrom = Carbon::parse($dateFrom)->startOfDay();
+                        }
+                        if ($dateTo && is_string($dateTo)) {
+                            $dateTo = Carbon::parse($dateTo)->endOfDay();
+                        }
+                        
+                        // Filtrer pour ne garder que les utilisateurs ayant encodé dans la période
+                        // Utiliser une sous-requête pour vérifier l'existence de produits dans la période
+                        $query->whereExists(function ($subQuery) use ($productsTable, $usersTable, $dateFrom, $dateTo) {
+                            $subQuery->select(DB::raw(1))
+                                ->from($productsTable)
+                                ->whereColumn("{$productsTable}.created_by", "{$usersTable}.id")
+                                ->whereNotNull("{$productsTable}.created_by");
+                            
+                            if ($dateFrom) {
+                                $subQuery->where("{$productsTable}.created_at", '>=', $dateFrom);
+                            }
+                            if ($dateTo) {
+                                $subQuery->where("{$productsTable}.created_at", '<=', $dateTo);
+                            }
+                        });
+                    }
+                    
                     return $query;
                 }),
         ];

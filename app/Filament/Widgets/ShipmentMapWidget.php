@@ -11,6 +11,9 @@ class ShipmentMapWidget extends Widget
     use HasWidgetShield;
     protected static string $view     = 'filament.widgets.shipment-map-widget';
     protected static ?string $heading = 'Suivi sur carte';
+    
+    // Prendre toute la largeur disponible
+    protected int|string|array $columnSpan = 'full';
 
     public ?int $shipmentId = null;
     // important: pas lazy pour re-render avec la page
