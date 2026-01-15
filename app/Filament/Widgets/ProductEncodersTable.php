@@ -325,24 +325,31 @@ class ProductEncodersTable extends BaseWidget
                     DatePicker::make('from')
                         ->label('Du')
                         ->displayFormat('d/m/Y')
-                        ->native(false),
+                        ->native(false)
+                        ->reactive()
+                        ->afterStateUpdated(function () {
+                            // Invalider le cache quand la date change
+                            $this->clearFilterCache();
+                            // Forcer le rafraîchissement du widget
+                            $this->dispatch('$refresh');
+                        }),
                     DatePicker::make('to')
                         ->label('Au')
                         ->displayFormat('d/m/Y')
-                        ->native(false),
+                        ->native(false)
+                        ->reactive()
+                        ->afterStateUpdated(function () {
+                            // Invalider le cache quand la date change
+                            $this->clearFilterCache();
+                            // Forcer le rafraîchissement du widget
+                            $this->dispatch('$refresh');
+                        }),
                 ])
                 // Le filtre ne modifie pas la requête, il sert juste à stocker les dates pour les calculs
                 ->query(function (Builder $query, array $data): Builder {
                     // On ne filtre pas la requête principale pour garder tous les utilisateurs
                     // Les dates seront utilisées dans getStateUsing pour calculer "Dans la période"
                     return $query;
-                })
-                ->live()
-                ->afterStateUpdated(function () {
-                    // Invalider le cache spécifique aux filtres quand ils changent
-                    $this->clearFilterCache();
-                    // Forcer le rafraîchissement du widget quand le filtre change
-                    $this->dispatch('$refresh');
                 }),
         ];
     }
