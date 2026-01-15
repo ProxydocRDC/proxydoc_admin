@@ -485,8 +485,9 @@ class ChemProductResource extends Resource
                 }),
 
             ])
-            ->contentHeight('70vh')
             ->poll('30s')
+            ->defaultPaginationPageOption(25)
+            ->paginationPageOptions([10, 25, 50, 100])
             ->actions([
                 ActionGroup::make([
                     Action::make('viewDetails')
