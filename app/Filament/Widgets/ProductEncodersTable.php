@@ -11,7 +11,6 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Cache;
 use Filament\Forms\Components\DatePicker;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Columns\Summarizers\Summarizer;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Columns\ImageColumn;
@@ -33,6 +32,7 @@ class ProductEncodersTable extends BaseWidget
     
     public ?int $modalUserId = null;
     public int $modalPage = 1;
+    public int $missingAuthorsModalPage = 1;
     
     public function changeModalPage(int $page): void
     {
@@ -169,15 +169,22 @@ class ProductEncodersTable extends BaseWidget
 
     protected function getTableDescription(): ?string
     {
+        $weekStart = Carbon::now()->startOfWeek();
+        $weekEnd = Carbon::now()->endOfWeek();
+        $monthStart = Carbon::now()->startOfMonth();
+        $monthEnd = Carbon::now()->endOfMonth();
         [$dateFrom, $dateTo] = $this->getPeriodDates();
 
-        if ($dateFrom || $dateTo) {
-            $fromLabel = $dateFrom ? $dateFrom->format('d/m/Y') : '—';
-            $toLabel = $dateTo ? $dateTo->format('d/m/Y') : '—';
-            return "Période : du {$fromLabel} au {$toLabel}";
-        }
+        $fromLabel = $dateFrom ? $dateFrom->format('d/m/Y') : '—';
+        $toLabel = $dateTo ? $dateTo->format('d/m/Y') : '—';
 
-        return 'Période : toutes les dates';
+        return new \Illuminate\Support\HtmlString(
+            '<div class="space-y-1 text-sm text-gray-500">' .
+                '<div>Semaine : ' . $weekStart->format('d/m/Y') . ' → ' . $weekEnd->format('d/m/Y') . '</div>' .
+                '<div>Mois : ' . $monthStart->format('d/m/Y') . ' → ' . $monthEnd->format('d/m/Y') . '</div>' .
+                '<div>Période : ' . $fromLabel . ' → ' . $toLabel . '</div>' .
+            '</div>'
+        );
     }
 
     protected function getPeriodDates(): array
@@ -224,6 +231,66 @@ class ProductEncodersTable extends BaseWidget
         }
 
         return $query->count();
+    }
+
+    protected function getTableContentFooter(): ?\Illuminate\Contracts\View\View
+    {
+        $weekStart = Carbon::now()->startOfWeek();
+        $weekEnd = Carbon::now()->endOfWeek();
+        $monthStart = Carbon::now()->startOfMonth();
+        $monthEnd = Carbon::now()->endOfMonth();
+        [$dateFrom, $dateTo] = $this->getPeriodDates();
+
+        return view('filament.widgets.product-encoders-missing-authors-footer', [
+            'missingAuthorsWeek' => $this->countMissingAuthors($weekStart, $weekEnd),
+            'missingAuthorsMonth' => $this->countMissingAuthors($monthStart, $monthEnd),
+            'missingAuthorsPeriod' => $this->countMissingAuthors($dateFrom, $dateTo),
+            'missingAuthorsTotal' => $this->countMissingAuthors(),
+            'missingAuthorsModalId' => 'missing-authors-modal',
+        ]);
+    }
+
+    public function openMissingAuthorsModal(): void
+    {
+        $this->missingAuthorsModalPage = 1;
+        $this->dispatch('open-modal', id: 'missing-authors-modal');
+    }
+
+    public function changeMissingAuthorsPage(int $page): void
+    {
+        $this->missingAuthorsModalPage = max(1, $page);
+        $this->dispatch('$refresh');
+    }
+
+    public function getMissingAuthorsModalData(): array
+    {
+        $perPage = 25;
+        $currentPage = max(1, (int) $this->missingAuthorsModalPage);
+        $offset = ($currentPage - 1) * $perPage;
+
+        $query = ChemProduct::query()
+            ->where(function (Builder $q) {
+                $q->whereNull('created_by')
+                    ->orWhere('created_by', 0)
+                    ->orWhereNull('updated_by')
+                    ->orWhere('updated_by', 0);
+            })
+            ->with(['category', 'manufacturer', 'form', 'creator', 'updater'])
+            ->orderByDesc('created_at');
+
+        $total = (clone $query)->count();
+        $products = $query->skip($offset)->take($perPage)->get();
+
+        return [
+            'products' => $products,
+            'total' => $total,
+            'perPage' => $perPage,
+            'dateFrom' => null,
+            'dateTo' => null,
+            'userId' => 'missing-authors',
+            'currentPage' => $currentPage,
+            'widgetId' => $this->getId(),
+        ];
     }
 
     protected function getTableQuery(): Builder
@@ -275,12 +342,7 @@ class ProductEncodersTable extends BaseWidget
             TextColumn::make('firstname')
                 ->label('Prénom')
                 ->searchable()
-                ->sortable()
-                ->summarize(
-                    Summarizer::make('missing_authors_label')
-                        ->label('Auteur manquant')
-                        ->using(fn () => '')
-                ),
+                ->sortable(),
             
             TextColumn::make('lastname')
                 ->label('Nom')
@@ -293,44 +355,18 @@ class ProductEncodersTable extends BaseWidget
                 ->toggleable(),
             
             TextColumn::make('products_this_week')
-                ->label(function () {
-                    $weekStart = Carbon::now()->startOfWeek();
-                    $weekEnd = Carbon::now()->endOfWeek();
-                    return 'Cette semaine (' . $weekStart->format('d/m/Y') . ' → ' . $weekEnd->format('d/m/Y') . ')';
-                })
+                ->label('Cette semaine')
                 ->numeric()
                 ->sortable()
                 ->badge()
-                ->color(fn ($state) => $state > 0 ? 'success' : 'gray')
-                ->summarize(
-                    Summarizer::make('missing_authors_week')
-                        ->label('')
-                        ->using(function () {
-                            $weekStart = Carbon::now()->startOfWeek();
-                            $weekEnd = Carbon::now()->endOfWeek();
-                            return $this->countMissingAuthors($weekStart, $weekEnd);
-                        })
-                ),
+                ->color(fn ($state) => $state > 0 ? 'success' : 'gray'),
             
             TextColumn::make('products_this_month')
-                ->label(function () {
-                    $monthStart = Carbon::now()->startOfMonth();
-                    $monthEnd = Carbon::now()->endOfMonth();
-                    return 'Ce mois (' . $monthStart->format('d/m/Y') . ' → ' . $monthEnd->format('d/m/Y') . ')';
-                })
+                ->label('Ce mois')
                 ->numeric()
                 ->sortable()
                 ->badge()
-                ->color(fn ($state) => $state > 0 ? 'primary' : 'gray')
-                ->summarize(
-                    Summarizer::make('missing_authors_month')
-                        ->label('')
-                        ->using(function () {
-                            $monthStart = Carbon::now()->startOfMonth();
-                            $monthEnd = Carbon::now()->endOfMonth();
-                            return $this->countMissingAuthors($monthStart, $monthEnd);
-                        })
-                ),
+                ->color(fn ($state) => $state > 0 ? 'primary' : 'gray'),
             
             TextColumn::make('products_in_period')
                 ->label('Dans la période')
@@ -374,27 +410,14 @@ class ProductEncodersTable extends BaseWidget
                         return ChemProduct::query()->where('created_by', $record->id)->count();
                     }
                 })
-                ->default('—')
-                ->summarize(
-                    Summarizer::make('missing_authors_period')
-                        ->label('')
-                        ->using(function () {
-                            [$dateFrom, $dateTo] = $this->getPeriodDates();
-                            return $this->countMissingAuthors($dateFrom, $dateTo);
-                        })
-                ),
+                ->default('—'),
             
             TextColumn::make('total_products')
                 ->label('Total')
                 ->numeric()
                 ->sortable()
                 ->badge()
-                ->color('info')
-                ->summarize(
-                    Summarizer::make('missing_authors_total')
-                        ->label('')
-                        ->using(fn () => $this->countMissingAuthors())
-                ),
+                ->color('info'),
         ];
     }
 
@@ -729,6 +752,90 @@ class ProductEncodersTable extends BaseWidget
         $writer->close();
 
         // Ne pas supprimer le fichier après envoi pour le cache, mais le nettoyer après 1 heure
+        return response()->download($path, $fileName);
+    }
+
+    public function exportMissingAuthorsToExcel()
+    {
+        $cacheKey = 'export_missing_authors_all';
+        $fileName = 'produits_sans_auteur_' . now()->format('Ymd_His') . '.xlsx';
+
+        $disk = Storage::disk('local');
+        $dir = 'tmp';
+        $disk->makeDirectory($dir);
+        $cachedFilePath = $dir . '/' . $cacheKey . '.xlsx';
+
+        if ($disk->exists($cachedFilePath) && (now()->timestamp - $disk->lastModified($cachedFilePath)) < 3600) {
+            return response()->download($disk->path($cachedFilePath), $fileName);
+        }
+
+        $query = ChemProduct::query()
+            ->where(function (Builder $q) {
+                $q->whereNull('created_by')
+                    ->orWhere('created_by', 0)
+                    ->orWhereNull('updated_by')
+                    ->orWhere('updated_by', 0);
+            })
+            ->with(['category', 'manufacturer', 'form'])
+            ->orderByDesc('created_at');
+
+        $path = $disk->path($cachedFilePath);
+
+        $writer = SimpleExcelWriter::create($path)->addHeader([
+            'Numéro',
+            'Nom commercial',
+            'DCI',
+            'Marque',
+            'Catégorie',
+            'Fabricant',
+            'Forme galénique',
+            'Dosage',
+            'Conditionnement',
+            'Code ATC',
+            'Prix réf.',
+            'Statut',
+            'Prescription',
+            'Images',
+            'Auteur manquant',
+            'Date d\'encodage',
+        ]);
+
+        $rowNumber = 0;
+        $query->chunk(1000, function ($products) use ($writer, &$rowNumber) {
+            $writer->addRows($products->map(function (ChemProduct $product) use (&$rowNumber) {
+                $rowNumber++;
+
+                $hasImages = false;
+                try {
+                    $imageKeys = $product->imageKeys();
+                    $hasImages = !empty($imageKeys) && count($imageKeys) > 0;
+                } catch (\Exception $e) {
+                    $hasImages = false;
+                }
+
+                return [
+                    'Numéro' => $rowNumber,
+                    'Nom commercial' => $product->name ?? '—',
+                    'DCI' => $product->generic_name ?? '—',
+                    'Marque' => $product->brand_name ?? '—',
+                    'Catégorie' => $product->category ? $product->category->name : '—',
+                    'Fabricant' => $product->manufacturer ? $product->manufacturer->name : '—',
+                    'Forme galénique' => $product->form ? $product->form->name : '—',
+                    'Dosage' => $product->strength ? (rtrim(rtrim(number_format((float) $product->strength, 2, '.', ''), '0'), '.') . ' ' . ($product->unit ?? '')) : '—',
+                    'Conditionnement' => $product->packaging ?? '—',
+                    'Code ATC' => $product->atc_code ?? '—',
+                    'Prix réf.' => $product->price_ref ? (number_format((float) $product->price_ref, 2, '.', ' ') . ' ' . ($product->currency ?? 'USD')) : '—',
+                    'Statut' => ((int)($product->status ?? 0) === 1) ? 'Actif' : 'Inactif',
+                    'Prescription' => ((int)($product->with_prescription ?? 0) === 1) ? 'Obligatoire' : 'Optionelle',
+                    'Images' => $hasImages ? 'Oui' : 'Non',
+                    'Auteur manquant' => (empty($product->created_by) || empty($product->updated_by)) ? 'Oui' : 'Non',
+                    'Date d\'encodage' => $product->created_at ? $product->created_at->format('d/m/Y H:i') : '—',
+                ];
+            })->all());
+        });
+
+        $writer->close();
+
         return response()->download($path, $fileName);
     }
 
