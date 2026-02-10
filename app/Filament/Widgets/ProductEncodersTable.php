@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Cache;
 use Filament\Forms\Components\DatePicker;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Columns\Summarizers\Summarizer;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Columns\ImageColumn;
@@ -166,6 +167,65 @@ class ProductEncodersTable extends BaseWidget
         return Auth::check();
     }
 
+    protected function getTableDescription(): ?string
+    {
+        [$dateFrom, $dateTo] = $this->getPeriodDates();
+
+        if ($dateFrom || $dateTo) {
+            $fromLabel = $dateFrom ? $dateFrom->format('d/m/Y') : '—';
+            $toLabel = $dateTo ? $dateTo->format('d/m/Y') : '—';
+            return "Période : du {$fromLabel} au {$toLabel}";
+        }
+
+        return 'Période : toutes les dates';
+    }
+
+    protected function getPeriodDates(): array
+    {
+        $dateFrom = null;
+        $dateTo = null;
+
+        try {
+            $dateFilterState = $this->getTableFilterState('date_range');
+            if (is_array($dateFilterState)) {
+                $dateFrom = $dateFilterState['from'] ?? null;
+                $dateTo = $dateFilterState['to'] ?? null;
+
+                if ($dateFrom && is_string($dateFrom)) {
+                    $dateFrom = Carbon::parse($dateFrom)->startOfDay();
+                }
+                if ($dateTo && is_string($dateTo)) {
+                    $dateTo = Carbon::parse($dateTo)->endOfDay();
+                }
+            }
+        } catch (\Exception $e) {
+            $dateFrom = null;
+            $dateTo = null;
+        }
+
+        return [$dateFrom, $dateTo];
+    }
+
+    protected function countMissingAuthors(?Carbon $dateFrom = null, ?Carbon $dateTo = null): int
+    {
+        $query = ChemProduct::query()
+            ->where(function (Builder $q) {
+                $q->whereNull('created_by')
+                    ->orWhere('created_by', 0)
+                    ->orWhereNull('updated_by')
+                    ->orWhere('updated_by', 0);
+            });
+
+        if ($dateFrom) {
+            $query->whereDate('created_at', '>=', $dateFrom);
+        }
+        if ($dateTo) {
+            $query->whereDate('created_at', '<=', $dateTo);
+        }
+
+        return $query->count();
+    }
+
     protected function getTableQuery(): Builder
     {
         // Début de la semaine en cours (lundi)
@@ -194,13 +254,7 @@ class ProductEncodersTable extends BaseWidget
                     ELSE NULL 
                 END) as products_this_month"),
                 // Compte des produits dans la période filtrée (sera calculé dynamiquement via les filtres)
-                DB::raw("COUNT(DISTINCT {$productsTable}.id) as products_in_period"),
-                DB::raw("COUNT(DISTINCT CASE 
-                    WHEN {$productsTable}.created_by IS NULL OR {$productsTable}.created_by = 0 
-                      OR {$productsTable}.updated_by IS NULL OR {$productsTable}.updated_by = 0 
-                    THEN {$productsTable}.id 
-                    ELSE NULL 
-                END) as products_missing_author")
+                DB::raw("COUNT(DISTINCT {$productsTable}.id) as products_in_period")
             ])
             ->join($productsTable, "{$productsTable}.created_by", '=', "{$usersTable}.id")
             ->whereNotNull("{$productsTable}.created_by")
@@ -221,7 +275,12 @@ class ProductEncodersTable extends BaseWidget
             TextColumn::make('firstname')
                 ->label('Prénom')
                 ->searchable()
-                ->sortable(),
+                ->sortable()
+                ->summarize(
+                    Summarizer::make('missing_authors_label')
+                        ->label('Auteur manquant')
+                        ->using(fn () => '')
+                ),
             
             TextColumn::make('lastname')
                 ->label('Nom')
@@ -242,7 +301,16 @@ class ProductEncodersTable extends BaseWidget
                 ->numeric()
                 ->sortable()
                 ->badge()
-                ->color(fn ($state) => $state > 0 ? 'success' : 'gray'),
+                ->color(fn ($state) => $state > 0 ? 'success' : 'gray')
+                ->summarize(
+                    Summarizer::make('missing_authors_week')
+                        ->label('')
+                        ->using(function () {
+                            $weekStart = Carbon::now()->startOfWeek();
+                            $weekEnd = Carbon::now()->endOfWeek();
+                            return $this->countMissingAuthors($weekStart, $weekEnd);
+                        })
+                ),
             
             TextColumn::make('products_this_month')
                 ->label(function () {
@@ -253,26 +321,19 @@ class ProductEncodersTable extends BaseWidget
                 ->numeric()
                 ->sortable()
                 ->badge()
-                ->color(fn ($state) => $state > 0 ? 'primary' : 'gray'),
+                ->color(fn ($state) => $state > 0 ? 'primary' : 'gray')
+                ->summarize(
+                    Summarizer::make('missing_authors_month')
+                        ->label('')
+                        ->using(function () {
+                            $monthStart = Carbon::now()->startOfMonth();
+                            $monthEnd = Carbon::now()->endOfMonth();
+                            return $this->countMissingAuthors($monthStart, $monthEnd);
+                        })
+                ),
             
             TextColumn::make('products_in_period')
-                ->label(function () {
-                    try {
-                        $dateFilterState = $this->getTableFilterState('date_range');
-                        $dateFrom = $dateFilterState['from'] ?? null;
-                        $dateTo = $dateFilterState['to'] ?? null;
-
-                        if ($dateFrom || $dateTo) {
-                            $fromLabel = $dateFrom ? Carbon::parse($dateFrom)->format('d/m/Y') : '—';
-                            $toLabel = $dateTo ? Carbon::parse($dateTo)->format('d/m/Y') : '—';
-                            return "Dans la période ({$fromLabel} → {$toLabel})";
-                        }
-                    } catch (\Exception $e) {
-                        // on garde le libellé par défaut
-                    }
-
-                    return 'Dans la période';
-                })
+                ->label('Dans la période')
                 ->numeric()
                 ->sortable()
                 ->badge()
@@ -313,21 +374,27 @@ class ProductEncodersTable extends BaseWidget
                         return ChemProduct::query()->where('created_by', $record->id)->count();
                     }
                 })
-                ->default('—'),
-            
-            TextColumn::make('products_missing_author')
-                ->label('Auteur manquant')
-                ->numeric()
-                ->sortable()
-                ->badge()
-                ->color(fn ($state) => $state > 0 ? 'danger' : 'success'),
+                ->default('—')
+                ->summarize(
+                    Summarizer::make('missing_authors_period')
+                        ->label('')
+                        ->using(function () {
+                            [$dateFrom, $dateTo] = $this->getPeriodDates();
+                            return $this->countMissingAuthors($dateFrom, $dateTo);
+                        })
+                ),
             
             TextColumn::make('total_products')
                 ->label('Total')
                 ->numeric()
                 ->sortable()
                 ->badge()
-                ->color('info'),
+                ->color('info')
+                ->summarize(
+                    Summarizer::make('missing_authors_total')
+                        ->label('')
+                        ->using(fn () => $this->countMissingAuthors())
+                ),
         ];
     }
 
