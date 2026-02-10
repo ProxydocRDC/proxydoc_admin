@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Cache;
 use Filament\Forms\Components\DatePicker;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Actions\Action;
 use Illuminate\Database\Eloquent\Builder;
@@ -193,7 +194,13 @@ class ProductEncodersTable extends BaseWidget
                     ELSE NULL 
                 END) as products_this_month"),
                 // Compte des produits dans la période filtrée (sera calculé dynamiquement via les filtres)
-                DB::raw("COUNT(DISTINCT {$productsTable}.id) as products_in_period")
+                DB::raw("COUNT(DISTINCT {$productsTable}.id) as products_in_period"),
+                DB::raw("COUNT(DISTINCT CASE 
+                    WHEN {$productsTable}.created_by IS NULL OR {$productsTable}.created_by = 0 
+                      OR {$productsTable}.updated_by IS NULL OR {$productsTable}.updated_by = 0 
+                    THEN {$productsTable}.id 
+                    ELSE NULL 
+                END) as products_missing_author")
             ])
             ->join($productsTable, "{$productsTable}.created_by", '=', "{$usersTable}.id")
             ->whereNotNull("{$productsTable}.created_by")
@@ -227,21 +234,45 @@ class ProductEncodersTable extends BaseWidget
                 ->toggleable(),
             
             TextColumn::make('products_this_week')
-                ->label('Cette semaine')
+                ->label(function () {
+                    $weekStart = Carbon::now()->startOfWeek();
+                    $weekEnd = Carbon::now()->endOfWeek();
+                    return 'Cette semaine (' . $weekStart->format('d/m/Y') . ' → ' . $weekEnd->format('d/m/Y') . ')';
+                })
                 ->numeric()
                 ->sortable()
                 ->badge()
                 ->color(fn ($state) => $state > 0 ? 'success' : 'gray'),
             
             TextColumn::make('products_this_month')
-                ->label('Ce mois')
+                ->label(function () {
+                    $monthStart = Carbon::now()->startOfMonth();
+                    $monthEnd = Carbon::now()->endOfMonth();
+                    return 'Ce mois (' . $monthStart->format('d/m/Y') . ' → ' . $monthEnd->format('d/m/Y') . ')';
+                })
                 ->numeric()
                 ->sortable()
                 ->badge()
                 ->color(fn ($state) => $state > 0 ? 'primary' : 'gray'),
             
             TextColumn::make('products_in_period')
-                ->label('Dans la période')
+                ->label(function () {
+                    try {
+                        $dateFilterState = $this->getTableFilterState('date_range');
+                        $dateFrom = $dateFilterState['from'] ?? null;
+                        $dateTo = $dateFilterState['to'] ?? null;
+
+                        if ($dateFrom || $dateTo) {
+                            $fromLabel = $dateFrom ? Carbon::parse($dateFrom)->format('d/m/Y') : '—';
+                            $toLabel = $dateTo ? Carbon::parse($dateTo)->format('d/m/Y') : '—';
+                            return "Dans la période ({$fromLabel} → {$toLabel})";
+                        }
+                    } catch (\Exception $e) {
+                        // on garde le libellé par défaut
+                    }
+
+                    return 'Dans la période';
+                })
                 ->numeric()
                 ->sortable()
                 ->badge()
@@ -283,6 +314,13 @@ class ProductEncodersTable extends BaseWidget
                     }
                 })
                 ->default('—'),
+            
+            TextColumn::make('products_missing_author')
+                ->label('Auteur manquant')
+                ->numeric()
+                ->sortable()
+                ->badge()
+                ->color(fn ($state) => $state > 0 ? 'danger' : 'success'),
             
             TextColumn::make('total_products')
                 ->label('Total')
@@ -361,6 +399,38 @@ class ProductEncodersTable extends BaseWidget
                     
                     return $query;
                 }),
+            TernaryFilter::make('missing_author')
+                ->label('Auteur manquant')
+                ->trueLabel('Manquant')
+                ->falseLabel('Complet')
+                ->queries(
+                    true: fn (Builder $query) => $query->whereExists(function ($subQuery) {
+                        $productsTable = (new ChemProduct())->getTable();
+                        $usersTable = (new User())->getTable();
+                        $subQuery->select(DB::raw(1))
+                            ->from($productsTable)
+                            ->whereColumn("{$productsTable}.created_by", "{$usersTable}.id")
+                            ->where(function ($q) use ($productsTable) {
+                                $q->whereNull("{$productsTable}.created_by")
+                                    ->orWhere("{$productsTable}.created_by", 0)
+                                    ->orWhereNull("{$productsTable}.updated_by")
+                                    ->orWhere("{$productsTable}.updated_by", 0);
+                            });
+                    }),
+                    false: fn (Builder $query) => $query->whereExists(function ($subQuery) {
+                        $productsTable = (new ChemProduct())->getTable();
+                        $usersTable = (new User())->getTable();
+                        $subQuery->select(DB::raw(1))
+                            ->from($productsTable)
+                            ->whereColumn("{$productsTable}.created_by", "{$usersTable}.id")
+                            ->whereNotNull("{$productsTable}.created_by")
+                            ->where("{$productsTable}.created_by", '!=', 0)
+                            ->whereNotNull("{$productsTable}.updated_by")
+                            ->where("{$productsTable}.updated_by", '!=', 0);
+                    }),
+                    blank: fn (Builder $query) => $query
+                )
+                ->indicator('Auteur manquant'),
         ];
     }
 
@@ -550,6 +620,7 @@ class ProductEncodersTable extends BaseWidget
             'Statut',
             'Prescription',
             'Images',
+            'Auteur manquant',
             'Date d\'encodage',
         ]);
 
@@ -582,6 +653,7 @@ class ProductEncodersTable extends BaseWidget
                     'Statut' => ((int)($product->status ?? 0) === 1) ? 'Actif' : 'Inactif',
                     'Prescription' => ((int)($product->with_prescription ?? 0) === 1) ? 'Obligatoire' : 'Optionelle',
                     'Images' => $hasImages ? 'Oui' : 'Non',
+                    'Auteur manquant' => (empty($product->created_by) || empty($product->updated_by)) ? 'Oui' : 'Non',
                     'Date d\'encodage' => $product->created_at ? $product->created_at->format('d/m/Y H:i') : '—',
                 ];
             })->all());

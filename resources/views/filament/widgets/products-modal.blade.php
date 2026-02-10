@@ -33,6 +33,7 @@
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">Prix réf.</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">Statut</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">Prescription</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">Auteur manquant</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">Date d'encodage</th>
                 </tr>
             </thead>
@@ -91,11 +92,21 @@
                                 <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">Optionelle</span>
                             @endif
                         </td>
+                        <td class="px-4 py-3 text-sm whitespace-nowrap">
+                            @php
+                                $missingAuthor = empty($product->created_by) || empty($product->updated_by);
+                            @endphp
+                            @if($missingAuthor)
+                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">Oui</span>
+                            @else
+                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">Non</span>
+                            @endif
+                        </td>
                         <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap">{{ $product->created_at ? $product->created_at->format('d/m/Y H:i') : '—' }}</td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="15" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                        <td colspan="16" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                             Aucun produit trouvé
                         </td>
                     </tr>

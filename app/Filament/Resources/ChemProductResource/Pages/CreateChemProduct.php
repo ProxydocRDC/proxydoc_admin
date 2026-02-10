@@ -45,8 +45,8 @@ class CreateChemProduct extends CreateRecord
                 ['name' => 'PROXYDOC'],      // critères d'unicité/recherche
                 [
                     'status'      => 1,
-                    'created_by'  => Auth::id() ?? 1,
-                    'user_id'     => Auth::id() ?? 1,
+                    'created_by'  => Auth::id() ?? config('app.system_user_id', 1),
+                    'user_id'     => Auth::id() ?? config('app.system_user_id', 1),
                     'supplier_id' => 0,
                     'zone_id'     => 1,
                     // ajoute ici d'autres colonnes requises par ton schéma si besoin
@@ -71,7 +71,7 @@ class CreateChemProduct extends CreateRecord
                 'sale_price' => 0,         // défaut si pas saisi sur le form produit
                 'currency'   => 'USD',
                 'stock_qty'  => 0,
-                'created_by' => Auth::id() ?? 1,
+                'created_by' => Auth::id() ?? config('app.system_user_id', 1),
             ]
         );
     }

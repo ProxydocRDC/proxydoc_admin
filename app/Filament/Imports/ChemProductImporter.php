@@ -204,8 +204,9 @@ class ChemProductImporter extends Importer
 
         // Méta
         // $this->record->supplier_id ??= (int) ($this->options['supplier_id'] ?? 0);
-        $this->record->created_by  ??= (int) (Auth::id() ?? 0);
-        $this->record->updated_by    = (int) (Auth::id() ?? 0);
+        $actorId = (int) (Auth::id() ?? config('app.system_user_id', 1));
+        $this->record->created_by  ??= $actorId;
+        $this->record->updated_by    = $actorId;
     }
 
     // ---------------------------------------------------------------------
@@ -224,8 +225,8 @@ class ChemProductImporter extends Importer
                 'status'     => 1,
                 'code'       => $code,
                 'name'       => $code,
-                'created_by' => Auth::id(),
-                'updated_by' => Auth::id(),
+                'created_by' => Auth::id() ?? config('app.system_user_id', 1),
+                'updated_by' => Auth::id() ?? config('app.system_user_id', 1),
             ])->id;
         }
         return $id ?: null;
@@ -242,8 +243,8 @@ class ChemProductImporter extends Importer
             $id = ChemManufacturer::create([
                 'status'     => 1,
                 'name'       => $name,
-                'created_by' => Auth::id(),
-                'updated_by' => Auth::id(),
+                'created_by' => Auth::id() ?? config('app.system_user_id', 1),
+                'updated_by' => Auth::id() ?? config('app.system_user_id', 1),
             ])->id;
         }
         return $id ?: null;
@@ -263,8 +264,8 @@ class ChemProductImporter extends Importer
             $id = ChemPharmaceuticalForm::create([
                 'status'     => 1,
                 'name'       => $name,
-                'created_by' => Auth::id(),
-                'updated_by' => Auth::id(),
+                'created_by' => Auth::id() ?? config('app.system_user_id', 1),
+                'updated_by' => Auth::id() ?? config('app.system_user_id', 1),
             ])->id;
         }
         return $id ?: null;
@@ -361,9 +362,9 @@ protected function afterSave(): void
             'status'      => 1,
             'name'        => 'Pharmacie Proxydoc',
             'code'        => 'PROXYDOC',              // si ta table a la colonne code
-            'created_by'  => Auth::id() ?? 1,
-            'updated_by'  => Auth::id() ?? 1,
-            'user_id'     => Auth::id() ?? 1,         // adapte si nécessaire
+            'created_by'  => Auth::id() ?? config('app.system_user_id', 1),
+            'updated_by'  => Auth::id() ?? config('app.system_user_id', 1),
+            'user_id'     => Auth::id() ?? config('app.system_user_id', 1),         // adapte si nécessaire
             'supplier_id' => 0,                       // adapte si nécessaire
             'zone_id'     => 1,                       // adapte si nécessaire
         ]);
@@ -383,8 +384,8 @@ protected function afterSave(): void
             'currency'   => 'USD',    // ou 'CDF' selon ton contexte / valeur par défaut
             'stock_qty'  => 50,
             'reorder_level'  => 5,
-            'created_by' => Auth::id() ?? 1,
-            'updated_by' => Auth::id() ?? 1,
+            'created_by' => Auth::id() ?? config('app.system_user_id', 1),
+            'updated_by' => Auth::id() ?? config('app.system_user_id', 1),
         ]
     );
 }

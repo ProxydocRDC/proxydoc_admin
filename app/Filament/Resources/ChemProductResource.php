@@ -53,7 +53,12 @@ class ChemProductResource extends Resource
             ->schema([
                 Group::make([
                     Section::make("Fiche produit")->schema([
-                        Hidden::make('created_by')->default(Auth::id()),
+                        Hidden::make('created_by')
+                            ->default(fn () => Auth::id() ?? (int) config('app.system_user_id', 1))
+                            ->dehydrated(fn ($state, $record) => $record === null),
+                        Hidden::make('updated_by')
+                            ->default(fn () => Auth::id() ?? (int) config('app.system_user_id', 1))
+                            ->dehydrateStateUsing(fn () => Auth::id() ?? (int) config('app.system_user_id', 1)),
 
                         Section::make('Identification')->schema([
 
@@ -295,6 +300,24 @@ class ChemProductResource extends Resource
                     ->label('Marque')
                     ->toggleable()
                     ->searchable(),
+                BadgeColumn::make('missing_author')
+                    ->label('Auteur manquant')
+                    ->getStateUsing(function ($record) {
+                        $missing = [];
+                        if (empty($record->created_by)) {
+                            $missing[] = 'Création';
+                        }
+                        if (empty($record->updated_by)) {
+                            $missing[] = 'Modif';
+                        }
+                        return $missing ? implode(', ', $missing) : '—';
+                    })
+                    ->colors([
+                        'danger' => fn ($state) => $state !== '—',
+                        'success' => fn ($state) => $state === '—',
+                    ])
+                    ->toggleable()
+                    ->sortable(false),
  TextColumn::make('creator.name')
                 ->label('Créé par')
                 ->placeholder('—')
@@ -395,6 +418,25 @@ class ChemProductResource extends Resource
                 SelectFilter::make('with_prescription')
                 ->label('Avec ordonnance')
                 ->options([1 => 'Obligatoire', 0 => 'Optionelle']),
+            TernaryFilter::make('missing_author')
+                ->label('Auteur manquant')
+                ->trueLabel('Manquant')
+                ->falseLabel('Complet')
+                ->queries(
+                    true: fn (Builder $q) => $q->where(function (Builder $qq) {
+                        $qq->whereNull('created_by')
+                            ->orWhere('created_by', 0)
+                            ->orWhereNull('updated_by')
+                            ->orWhere('updated_by', 0);
+                    }),
+                    false: fn (Builder $q) => $q
+                        ->whereNotNull('created_by')
+                        ->where('created_by', '!=', 0)
+                        ->whereNotNull('updated_by')
+                        ->where('updated_by', '!=', 0),
+                    blank: fn (Builder $q) => $q
+                )
+                ->indicator('Auteur manquant'),
 
             // SelectFilter::make('manufacturer_id')
             //     ->label('Fournisseur')
