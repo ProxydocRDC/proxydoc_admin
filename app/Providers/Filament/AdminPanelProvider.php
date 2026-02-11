@@ -7,6 +7,7 @@ use Filament\Panel;
 use Filament\Widgets;
 use App\Models\MainTenant;
 use Filament\PanelProvider;
+use Filament\Support\Enums\MaxWidth;
 use Filament\Support\Colors\Color;
 use Illuminate\Support\Facades\Auth;
 use App\Filament\Widgets\ProductsTrend;
@@ -26,7 +27,7 @@ use Illuminate\Cookie\Middleware\EncryptCookies;
 use Filament\Http\Middleware\AuthenticateSession;
 use App\Filament\Widgets\AppointmentsByServiceChart;
 use BezhanSalleh\FilamentShield\FilamentShieldPlugin;
-
+use Filament\View\PanelsRenderHook;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use App\Filament\Widgets\DoctorAvailabilityTodayTable;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
@@ -67,6 +68,7 @@ class AdminPanelProvider extends PanelProvider
                 \App\Filament\Pages\Dashboard::class, // 👈 ta page custom
             ])
             ->authGuard('web')
+            // ->maxContentWidth(MaxWidth::SevenExtraLarge)
             ->unsavedChangesAlerts()
             ->brandName('Dashboard PROXYDOC')
             // ->viteTheme('resources/css/filament/admin/theme.css')
@@ -112,14 +114,26 @@ class AdminPanelProvider extends PanelProvider
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
             ])
+            ->renderHook(PanelsRenderHook::STYLES_AFTER, fn (): string => '
+                <style>
+                    .fi-main-ctn { min-width: 0; }
+                    .fi-main { overflow-x: auto; max-width: 100%; }
+                    .fi-wi-table, .fi-ta-container { overflow-x: auto; max-width: 100%; }
+                    .fi-topbar { position: sticky !important; top: 0 !important; z-index: 40 !important; }
+                </style>
+            ')
             ->plugins([
                 FilamentShieldPlugin::make(),
-                 EasyFooterPlugin::make()->withFooterPosition('footer')->withLoadTime('Cette page a été chargée dans')
+                 EasyFooterPlugin::make()
+                ->withFooterPosition('footer')
+                ->withSentence('Proxydoc')
+                ->withLoadTime('Cette page a été chargée dans')
                 ->withLogo(asset('assets/images/default.jpg'), 'https://proxydoc.org')
                 ->withLinks([
                     ['title' => 'A propos', 'url' => 'https://proxydoc.org'],
                     ['title' => 'Privacy Policy', 'url' => 'https://proxydoc.org/privacy-policy']
-                ])->withBorder(),
+                ])
+                ->withBorder(),
             ])
             ->authMiddleware([
                 Authenticate::class,

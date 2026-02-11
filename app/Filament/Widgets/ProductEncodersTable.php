@@ -167,7 +167,7 @@ class ProductEncodersTable extends BaseWidget
         return Auth::check();
     }
 
-    protected function getTableDescription(): ?string
+    protected function getTableDescription(): \Illuminate\Contracts\Support\Htmlable|string|null
     {
         $weekStart = Carbon::now()->startOfWeek();
         $weekEnd = Carbon::now()->endOfWeek();
@@ -179,11 +179,9 @@ class ProductEncodersTable extends BaseWidget
         $toLabel = $dateTo ? $dateTo->format('d/m/Y') : '—';
 
         return new \Illuminate\Support\HtmlString(
-            '<div class="space-y-1 text-sm text-gray-500">' .
-                '<div>Semaine : ' . $weekStart->format('d/m/Y') . ' → ' . $weekEnd->format('d/m/Y') . '</div>' .
-                '<div>Mois : ' . $monthStart->format('d/m/Y') . ' → ' . $monthEnd->format('d/m/Y') . '</div>' .
-                '<div>Période : ' . $fromLabel . ' → ' . $toLabel . '</div>' .
-            '</div>'
+            '<span class="block">Semaine : ' . $weekStart->format('d/m/Y') . ' → ' . $weekEnd->format('d/m/Y') . '</span>' .
+            '<span class="block">Mois : ' . $monthStart->format('d/m/Y') . ' → ' . $monthEnd->format('d/m/Y') . '</span>' .
+            '<span class="block">Période : ' . $fromLabel . ' → ' . $toLabel . '</span>'
         );
     }
 

@@ -1,7 +1,5 @@
-{{-- resources/views/filament/pages/shipments-tracker.blade.php --}}
-{{-- <x-filament::page> --}}
-    <x-filament-widgets::widget>
-    <div class="space-y-6">
+<x-filament-widgets::widget>
+<div class="space-y-6">
         {{ $this->form??"" }}
 
         <x-filament::section>
@@ -21,8 +19,7 @@
             </div>
         </x-filament::section>
     </div>
-    </x-filament-widgets::widget>
-{{-- </x-filament::page> --}}
+</x-filament-widgets::widget>
 
 @once
     @push('styles')

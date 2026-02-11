@@ -1,10 +1,13 @@
 <?php
 
+use Filament\Facades\Filament;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return Redirect()->route('admin');
+    return Redirect()->to(
+        Filament::getPanel('admin')->getLoginUrl()
+    );
 });
 Route::get('/templates/chem-products.csv', function () {
     $headers = [
@@ -45,6 +48,22 @@ Route::middleware('auth')->get('/imports/reports/{file}', function (string $file
     abort_unless(is_file($path), 404);
     return response()->download($path, $file);
 })->name('imports.report');
+
+Route::get('/js/filament/{path}', function (string $path) {
+    $fullPath = public_path('js/filament/' . $path);
+    abort_unless(is_file($fullPath), 404);
+    return response()->file($fullPath, ['Content-Type' => 'application/javascript; charset=UTF-8']);
+})->where('path', '.*');
+
+Route::get('/css/filament/{path}', function (string $path) {
+    $fullPath = public_path('css/filament/' . $path);
+    abort_unless(is_file($fullPath), 404);
+    return response()->file($fullPath, ['Content-Type' => 'text/css; charset=UTF-8']);
+})->where('path', '.*');
+
+Route::fallback(function () {
+    abort(404);
+});
 // routes/web.php
 Route::middleware(['auth'])->get('/exports/templates/products.csv', function () {
     // Entêtes alignées sur chem_products (+ colonnes FK "humaines")
