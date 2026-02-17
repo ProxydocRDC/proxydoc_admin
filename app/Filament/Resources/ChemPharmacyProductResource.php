@@ -488,6 +488,35 @@ currency*(USD/CDF), stock_qty, reorder_level, image(clé S3), description.'
                         new ChemPharmacyProductsExport(),
                         'pharmacy_products.xlsx'
                     )),
+
+                Action::make('setQuantitiesInBulk')
+                    ->label('Définir les quantités en masse')
+                    ->icon('heroicon-o-archive-box')
+                    ->color('warning')
+                    ->visible(fn () => Auth::user()?->hasRole('super_admin') ?? false)
+                    ->form([
+                        \Filament\Forms\Components\TextInput::make('quantity')
+                            ->label('Quantité à affecter')
+                            ->numeric()
+                            ->default(0)
+                            ->minValue(0)
+                            ->required()
+                            ->helperText('Cette quantité sera appliquée à tous les produits déjà affectés dans les pharmacies. Mettez 0 pour bloquer les achats.'),
+                    ])
+                    ->modalHeading('Définir les quantités en masse')
+                    ->modalSubmitActionLabel('Appliquer')
+                    ->action(function (array $data, Action $action): void {
+                        $quantity = (float) ($data['quantity'] ?? 0);
+                        if ($quantity < 0) {
+                            $quantity = 0;
+                        }
+                        Session::put('set_quantities_data', [
+                            'quantity'  => $quantity,
+                            'processed' => 0,
+                        ]);
+                        Session::forget('set_quantities_cancelled');
+                        $action->redirect(ChemPharmacyProductResource::getUrl('set-quantities-progress'));
+                    }),
                 // 👉 Action “Affecter plusieurs produits”
                 Action::make('bulkAssignToPharmacy')
                     ->label('Affecter plusieurs produits')
@@ -603,10 +632,11 @@ currency*(USD/CDF), stock_qty, reorder_level, image(clé S3), description.'
     public static function getPages(): array
     {
         return [
-            'index'                => Pages\ListChemPharmacyProducts::route('/'),
-            'create'               => Pages\CreateChemPharmacyProduct::route('/create'),
-            'edit'                 => Pages\EditChemPharmacyProduct::route('/{record}/edit'),
-            'bulk-assign-progress' => Pages\BulkAssignProgress::route('/bulk-assign-progress'),
+            'index'                 => Pages\ListChemPharmacyProducts::route('/'),
+            'create'                => Pages\CreateChemPharmacyProduct::route('/create'),
+            'edit'                  => Pages\EditChemPharmacyProduct::route('/{record}/edit'),
+            'bulk-assign-progress'  => Pages\BulkAssignProgress::route('/bulk-assign-progress'),
+            'set-quantities-progress' => Pages\SetQuantitiesProgress::route('/set-quantities-progress'),
         ];
     }
 
