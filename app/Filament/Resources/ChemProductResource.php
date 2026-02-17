@@ -9,7 +9,6 @@ use App\Models\ChemProduct;
 use Illuminate\Support\Str;
 use Filament\Resources\Resource;
 use App\Imports\ChemProductsImport;
-use App\Models\ChemPharmacyProduct;
 use App\Models\ChemCategory;
 use Filament\Tables\Actions\Action;
 use Filament\Forms\Components\Group;

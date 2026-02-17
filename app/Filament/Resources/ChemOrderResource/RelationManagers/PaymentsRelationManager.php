@@ -168,7 +168,7 @@ class PaymentsRelationManager  extends RelationManager
         ])
         ->actions([
             \Filament\Tables\Actions\EditAction::make(),
-            \Filament\Tables\Actions\DeleteAction::make(),
+            \App\Filament\Actions\TrashAction::make(),
         ])
         ->paginated(false);
     }

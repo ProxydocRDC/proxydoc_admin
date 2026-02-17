@@ -13,6 +13,7 @@ use App\Models\ChemPharmacyProduct;
 use Filament\Tables\Actions\Action;
 use Filament\Forms\Components\Group;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Session;
 use Maatwebsite\Excel\Facades\Excel;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
@@ -487,6 +488,35 @@ currency*(USD/CDF), stock_qty, reorder_level, image(clé S3), description.'
                         new ChemPharmacyProductsExport(),
                         'pharmacy_products.xlsx'
                     )),
+
+                Action::make('setQuantitiesInBulk')
+                    ->label('Définir les quantités en masse')
+                    ->icon('heroicon-o-archive-box')
+                    ->color('warning')
+                    ->visible(fn () => Auth::user()?->hasRole('super_admin') ?? false)
+                    ->form([
+                        \Filament\Forms\Components\TextInput::make('quantity')
+                            ->label('Quantité à affecter')
+                            ->numeric()
+                            ->default(0)
+                            ->minValue(0)
+                            ->required()
+                            ->helperText('Cette quantité sera appliquée à tous les produits déjà affectés dans les pharmacies. Mettez 0 pour bloquer les achats.'),
+                    ])
+                    ->modalHeading('Définir les quantités en masse')
+                    ->modalSubmitActionLabel('Appliquer')
+                    ->action(function (array $data, Action $action): void {
+                        $quantity = (float) ($data['quantity'] ?? 0);
+                        if ($quantity < 0) {
+                            $quantity = 0;
+                        }
+                        Session::put('set_quantities_data', [
+                            'quantity'  => $quantity,
+                            'processed' => 0,
+                        ]);
+                        Session::forget('set_quantities_cancelled');
+                        $action->redirect(ChemPharmacyProductResource::getUrl('set-quantities-progress'));
+                    }),
                 // 👉 Action “Affecter plusieurs produits”
                 Action::make('bulkAssignToPharmacy')
                     ->label('Affecter plusieurs produits')
@@ -495,7 +525,7 @@ currency*(USD/CDF), stock_qty, reorder_level, image(clé S3), description.'
                     ->modalSubmitActionLabel('Affecter maintenant')
                     ->color('primary')
                     ->form(self::bulkAssignFormSchema())
-                    ->action(function (array $data): void {
+                    ->action(function (array $data, Action $action): void {
                         // Sécurité minimale
                         $user = Auth::user();
 
@@ -531,8 +561,16 @@ currency*(USD/CDF), stock_qty, reorder_level, image(clé S3), description.'
                             ->all();
                         // 2) Calcule ceux à créer & à ignorer
                         $toCreateIds = array_values(array_diff($productIds, $existingIds));
-                        $created     = 0;
                         $skipped     = count($productIds) - count($toCreateIds);
+
+                        if (empty($toCreateIds)) {
+                            Notification::make()
+                                ->title('Aucun produit à créer')
+                                ->body("Tous les produits sélectionnés sont déjà affectés à cette pharmacie ({$skipped} ignorés).")
+                                ->warning()
+                                ->send();
+                            return;
+                        }
 
                         // 3) Prépare le payload commun
                         $base = [
@@ -552,45 +590,18 @@ currency*(USD/CDF), stock_qty, reorder_level, image(clé S3), description.'
                             'created_at'     => now(),
                             'updated_at'     => now(),
                         ];
-                        // 4) Insert groupé (si nécessaire)
-                        if (count($toCreateIds) > 0) {
-                            DB::transaction(function () use ($toCreateIds, $base, &$created) {
-                                foreach ($toCreateIds as $pid) {
-                                    $product = ChemProduct::find($pid);
+                        Session::put('bulk_assign_data', [
+                            'pharmacy_id'   => $pharmacyId,
+                            'to_create_ids' => $toCreateIds,
+                            'remaining_ids' => $toCreateIds,
+                            'base'          => $base,
+                            'skipped'       => $skipped,
+                            'processed'     => 0,
+                            'created'       => 0,
+                        ]);
 
-                                    // Prix de vente : si non saisi → on prend price_ref du produit
-                                    $salePrice = $base['sale_price'] ?? $product?->price_ref;
-
-                                    ChemPharmacyProduct::create([
-                                        'product_id' => $pid,
-                                        'sale_price' => $salePrice,
-                                    ] + $base);
-
-                                    $created++;
-                                }
-                            });
-                        }
-
-                        Notification::make()
-                            ->title('Affectation terminée')
-                            ->body("Créés : {$created} • Ignorés (déjà présents) : {$skipped}")
-                            ->success()
-                            ->send();
+                        $action->redirect(ChemPharmacyProductResource::getUrl('bulk-assign-progress'));
                         // On applique les champs “communs” à toutes les lignes créées
-                        $payloadCommon = [
-                            'pharmacy_id'    => $data['pharmacy_id'],
-                            'lot_ref'        => $data['lot_ref'] ?? null,
-                            'origin_country' => $data['origin_country'] ?? 'COD',
-                            'expiry_date'    => $data['expiry_date'] ?? null,
-                            'cost_price'     => $data['cost_price'] ?? null,
-                            'sale_price'     => $data['sale_price'],
-                            'currency'       => $data['currency'],
-                            'stock_qty'      => $data['stock_qty'] ?? 0,
-                            'reorder_level'  => $data['reorder_level'] ?? null,
-                            'image'          => $data['image'] ?? null, // chemin retourné par FileUpload
-                            'description'    => $data['description'] ?? null,
-                            'created_by'     => $user?->id,
-                        ];
 
                     })
                 // Optionnel : autorisation via policy
@@ -621,9 +632,11 @@ currency*(USD/CDF), stock_qty, reorder_level, image(clé S3), description.'
     public static function getPages(): array
     {
         return [
-            'index'  => Pages\ListChemPharmacyProducts::route('/'),
-            'create' => Pages\CreateChemPharmacyProduct::route('/create'),
-            'edit'   => Pages\EditChemPharmacyProduct::route('/{record}/edit'),
+            'index'                 => Pages\ListChemPharmacyProducts::route('/'),
+            'create'                => Pages\CreateChemPharmacyProduct::route('/create'),
+            'edit'                  => Pages\EditChemPharmacyProduct::route('/{record}/edit'),
+            'bulk-assign-progress'  => Pages\BulkAssignProgress::route('/bulk-assign-progress'),
+            'set-quantities-progress' => Pages\SetQuantitiesProgress::route('/set-quantities-progress'),
         ];
     }
 
@@ -706,12 +719,20 @@ currency*(USD/CDF), stock_qty, reorder_level, image(clé S3), description.'
                         DatePicker::make('expiry_date')->label('Date d\'expiration'),
 
                         TextInput::make('cost_price')->label('Prix d\'achat')->numeric()->prefix('$'),
-                        TextInput::make('sale_price')->label('Prix de vente')->numeric()->prefix('$'),
+                        TextInput::make('sale_price')
+                            ->label('Prix de vente')
+                            ->numeric()
+                            ->prefix('$')
+                            ->helperText('Optionnel : si non défini, le prix de référence du produit sera utilisé.'),
 
-                        Select::make('currency')->label('Devise')->options([
-                            'USD' => 'USD - Dollar américain',
-                            'CDF' => 'CDF - Franc congolais',
-                        ])->required(),
+                        Select::make('currency')
+                            ->label('Devise')
+                            ->placeholder('Utiliser la devise du produit')
+                            ->options([
+                                'USD' => 'USD - Dollar américain',
+                                'CDF' => 'CDF - Franc congolais',
+                            ])
+                            ->helperText('Optionnel : si non défini, la devise du produit sera utilisée.'),
 
                         TextInput::make('stock_qty')->label('Quantité en stock')->numeric()->default(0)->required(),
                         TextInput::make('reorder_level')->label('Niveau d\'alerte stock')->numeric(),
