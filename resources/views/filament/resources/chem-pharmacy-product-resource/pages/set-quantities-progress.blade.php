@@ -1,7 +1,7 @@
 <x-filament-panels::page>
     <div>
         @if (! $completed)
-            <div wire:poll.200ms="processChunk"></div>
+            <div wire:poll.1.5s="processChunk"></div>
         @endif
 
         <x-filament::section>

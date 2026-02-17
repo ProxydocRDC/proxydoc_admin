@@ -59,7 +59,7 @@ class BulkAssignProgress extends Page
             return;
         }
 
-        $chunkSize = 10;
+        $chunkSize = 30;
         $remaining = $data['remaining_ids'] ?? $data['to_create_ids'];
         $base = $data['base'];
 
