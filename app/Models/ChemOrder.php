@@ -155,10 +155,15 @@ public function deliveryPerson()
     public function signedImageUrls(int $ttlMinutes = 10): array
     {
         $exp = now()->addMinutes($ttlMinutes);
-        return array_values(array_filter(array_map(
-            fn ($k) => Storage::disk('s3')->temporaryUrl($k, $exp),
-            $this->imageKeys()
-        )));
+        $result = [];
+        foreach ($this->imageKeys() as $k) {
+            try {
+                $result[] = Storage::disk('s3')->temporaryUrl($k, $exp);
+            } catch (\Throwable $e) {
+                // Fichier supprimé ou erreur S3
+            }
+        }
+        return array_values(array_filter($result));
     }
 
     /** Première URL signée (ou null) */

@@ -1,6 +1,9 @@
 <?php
 namespace App\Filament\Resources;
 
+use App\Filament\Actions\TrashAction;
+use App\Filament\Actions\TrashBulkAction;
+use App\Filament\Concerns\HasTrashableRecords;
 use Filament\Tables;
 use App\Models\MainCity;
 use Filament\Forms\Form;
@@ -13,12 +16,12 @@ use Filament\Forms\Components\Section;
 use Filament\Tables\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Forms\Components\TextInput;
-use Filament\Tables\Actions\DeleteAction;
 use Filament\Tables\Filters\SelectFilter;
 use App\Filament\Resources\MainCityResource\Pages;
 
 class MainCityResource extends Resource
 {
+    use HasTrashableRecords;
     protected static ?string $model = MainCity::class;
     /** Menu & libellés */
     protected static ?string $navigationIcon   = 'heroicon-o-map-pin'; // 📍
@@ -103,14 +106,15 @@ class MainCityResource extends Resource
                     ->label('Pays')
                     ->relationship('country', 'name_fr')
                     ->indicator('Pays'),
+                ...array_filter([static::getTrashFilter()]),
             ])
             ->actions([
                EditAction::make()->label('Modifier'),
-               DeleteAction::make()->label('Supprimer'),
+               TrashAction::make()->label('Mettre à la corbeille'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    TrashBulkAction::make(),
                 ]),
             ]);
     }

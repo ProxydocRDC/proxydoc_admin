@@ -193,7 +193,7 @@ class UploadTestResource extends Resource
                     ->icon('heroicon-o-trash'),
             ])
             ->bulkActions([
-                Tables\Actions\DeleteBulkAction::make(),
+                \App\Filament\Actions\TrashBulkAction::make(),
             ]);
     }
 

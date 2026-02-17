@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Concerns\HasTrashableRecords;
 use Filament\Forms;
 use App\Support\Sms;
 use Filament\Tables;
@@ -23,6 +24,7 @@ use Illuminate\Database\Eloquent\Builder;
 
 class ProxyDoctorResource extends Resource
 {
+    use HasTrashableRecords;
     protected static ?string $model = ProxyDoctor::class;
     protected static ?string $navigationIcon = 'heroicon-o-user-group';
     protected static ?string $navigationLabel = 'Médecins';
@@ -211,11 +213,12 @@ class ProxyDoctorResource extends Resource
             ])
             ->filters([
                 Tables\Filters\TernaryFilter::make('status')->label('Actif'),
+                ...array_filter([static::getTrashFilter()]),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make()->before(function (\App\Models\ProxyDoctor $record) {
+                \App\Filament\Actions\TrashAction::make()->before(function (\App\Models\ProxyDoctor $record) {
                  DB::transaction(function () use ($record) {
                     // détache les liaisons pivot
                     $record->services()->detach();
@@ -269,7 +272,7 @@ class ProxyDoctorResource extends Resource
                             ->send();
                     })
                     ->visible(fn () => Auth::user()?->hasAnyRole(['super_admin','admin']) ?? false),
-                                    Tables\Actions\DeleteBulkAction::make(),
+                                    \App\Filament\Actions\TrashBulkAction::make(),
                                 ]),
                                 BulkAction::make('bulkActivate')
                 ->label('Activer la sélection')

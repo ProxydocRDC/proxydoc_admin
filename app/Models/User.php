@@ -166,7 +166,10 @@ public function getImageUrlAttribute(): ?string
         return null;
     }
 
-    // URL signée valable 10 minutes (ajuste si besoin)
-    return Storage::disk('s3')->temporaryUrl($path, now()->addMinutes(10));
+    try {
+        return Storage::disk('s3')->temporaryUrl($path, now()->addMinutes(10));
+    } catch (\Throwable $e) {
+        return null;
+    }
 }
 }

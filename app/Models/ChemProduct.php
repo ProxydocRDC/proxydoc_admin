@@ -105,10 +105,15 @@ class ChemProduct extends Model
     public function signedImageUrls(int $ttlMinutes = 10): array
     {
         $exp = now()->addMinutes($ttlMinutes);
-        return array_values(array_filter(array_map(
-            fn ($key) => Storage::disk('s3')->temporaryUrl($key, $exp),
-            $this->imageKeys()
-        )));
+        $result = [];
+        foreach ($this->imageKeys() as $key) {
+            try {
+                $result[] = Storage::disk('s3')->temporaryUrl($key, $exp);
+            } catch (\Throwable $e) {
+                // Fichier supprimé ou erreur S3 : on ignore
+            }
+        }
+        return array_values(array_filter($result));
     }
 
     /** Première URL signée (ou null). */

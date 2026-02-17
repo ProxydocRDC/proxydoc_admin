@@ -1,6 +1,9 @@
 <?php
 namespace App\Filament\Resources;
 
+use App\Filament\Actions\TrashAction;
+use App\Filament\Actions\TrashBulkAction;
+use App\Filament\Concerns\HasTrashableRecords;
 use App\Filament\Resources\ChemPosologyResource\Pages;
 use App\Models\ChemPosology;
 use Filament\Forms\Components\Group;
@@ -18,6 +21,7 @@ use Illuminate\Support\Facades\Auth;
 
 class ChemPosologyResource extends Resource
 {
+    use HasTrashableRecords;
     protected static ?string $model = ChemPosology::class;
 
     protected static ?string $navigationIcon  = 'heroicon-o-clipboard-document-check';
@@ -90,16 +94,14 @@ class ChemPosologyResource extends Resource
                 TextColumn::make('notes')->label('Notes')->limit(30),
                 TextColumn::make('created_at')->label('Créé le')->dateTime('d/m/Y'),
             ])
-            ->filters([
-                //
-            ])
+            ->filters([...array_filter([static::getTrashFilter()])])
             ->actions([
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                \App\Filament\Actions\TrashAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    \App\Filament\Actions\TrashBulkAction::make(),
                 ]),
             ]);
     }

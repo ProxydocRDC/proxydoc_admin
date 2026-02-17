@@ -1,6 +1,9 @@
 <?php
 namespace App\Filament\Resources;
 
+use App\Filament\Actions\TrashAction;
+use App\Filament\Actions\TrashBulkAction;
+use App\Filament\Concerns\HasTrashableRecords;
 use Filament\Tables;
 use Filament\Forms\Form;
 use Filament\Tables\Table;
@@ -19,6 +22,7 @@ use App\Filament\Resources\MainCountryResource\Pages;
 
 class MainCountryResource extends Resource
 {
+    use HasTrashableRecords;
     protected static ?string $model = MainCountry::class;
 
     protected static ?string $navigationIcon   = 'heroicon-o-globe-europe-africa';
@@ -116,13 +120,14 @@ class MainCountryResource extends Resource
                 SelectFilter::make('status')
                     ->label('Statut')
                     ->options([1 => 'Actif', 0 => 'Inactif']),
+                ...array_filter([static::getTrashFilter()]),
             ])
             ->actions([
                 Tables\Actions\EditAction::make()->label('Modifier'),
-                Tables\Actions\DeleteAction::make()->label('Supprimer'),
+                TrashAction::make()->label('Mettre à la corbeille'),
             ])
             ->bulkActions([
-                Tables\Actions\DeleteBulkAction::make()->label('Supprimer la sélection'),
+                TrashBulkAction::make()->label('Mettre à la corbeille'),
             ]);
     }
 

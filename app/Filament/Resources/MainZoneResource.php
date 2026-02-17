@@ -1,6 +1,9 @@
 <?php
 namespace App\Filament\Resources;
 
+use App\Filament\Actions\TrashAction;
+use App\Filament\Actions\TrashBulkAction;
+use App\Filament\Concerns\HasTrashableRecords;
 use Filament\Tables;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
@@ -17,6 +20,7 @@ use App\Filament\Resources\MainZoneResource\Pages;
 
 class MainZoneResource extends Resource
 {
+    use HasTrashableRecords;
     protected static ?string $navigationIcon   = 'heroicon-o-map';
     protected static ?string $navigationLabel  = 'Zones de livraison';
     protected static ?string $modelLabel       = 'Zone';
@@ -136,14 +140,15 @@ class MainZoneResource extends Resource
                 SelectFilter::make('status')
                     ->label('Actif ?')
                     ->options([1 => 'Actif', 0 => 'Inactif']),
+                ...array_filter([static::getTrashFilter()]),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make()->label('Voir'),
                 Tables\Actions\EditAction::make()->label('Modifier'),
-                Tables\Actions\DeleteAction::make()->label('Supprimer'),
+                TrashAction::make()->label('Mettre à la corbeille'),
             ])
             ->bulkActions([
-                Tables\Actions\DeleteBulkAction::make()->label('Supprimer la sélection'),
+                TrashBulkAction::make()->label('Mettre à la corbeille'),
             ]);
         }
         public static function getPages(): array

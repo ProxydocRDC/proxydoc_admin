@@ -16,8 +16,12 @@ class S3Helpers
             return $path;
         }
 
-        return $public
-            ? Storage::disk($disk)->url($path)
-            : Storage::disk($disk)->temporaryUrl($path, now()->addMinutes($ttlMinutes));
+        try {
+            return $public
+                ? Storage::disk($disk)->url($path)
+                : Storage::disk($disk)->temporaryUrl($path, now()->addMinutes($ttlMinutes));
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 }

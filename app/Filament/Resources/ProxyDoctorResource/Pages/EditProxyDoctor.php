@@ -46,7 +46,7 @@ class EditProxyDoctor extends EditRecord
         $nextId = $this->findAdjacentId('next');
 
         return [
-                 Actions\DeleteAction::make(),
+                 \App\Filament\Actions\TrashAction::makeForPage(),
             // Ex: Delete, View, etc. si tu en as
             Actions\Action::make('prev')
                 ->label('Précédent')->keyBindings(['alt+arrow-left'])   // pour "prev"

@@ -2,6 +2,9 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Actions\TrashAction;
+use App\Filament\Actions\TrashBulkAction;
+use App\Filament\Concerns\HasTrashableRecords;
 use Filament\Forms;
 use Filament\Tables;
 use Filament\Forms\Form;
@@ -16,6 +19,7 @@ use Filament\Forms\Components\Hidden;
 
 class SubscriptionPlanResource extends \Filament\Resources\Resource
 {
+    use HasTrashableRecords;
     protected static ?string $model = SubscriptionPlan::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
@@ -91,12 +95,13 @@ class SubscriptionPlanResource extends \Filament\Resources\Resource
                     'enterprise' => 'Entreprise',
                 ]),
                 Tables\Filters\SelectFilter::make('status')->label('Actif ?')->options([1 => 'Actif', 0 => 'Inactif']),
+                ...array_filter([static::getTrashFilter()]),
             ])
             ->actions([
                 Tables\Actions\EditAction::make()->label('Modifier'),
-                Tables\Actions\DeleteAction::make()->label('Supprimer'),
+                TrashAction::make()->label('Mettre à la corbeille'),
             ])
-            ->bulkActions([Tables\Actions\DeleteBulkAction::make()]);
+            ->bulkActions([TrashBulkAction::make()]);
     }
 
     public static function getPages(): array

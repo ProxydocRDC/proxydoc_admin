@@ -77,10 +77,10 @@ class OrdersRelationManager extends RelationManager
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make()->visible(fn() => Auth::user()?->hasRole('super_admin')),
-                Tables\Actions\DeleteAction::make()->visible(fn() => Auth::user()?->hasRole('super_admin')),
+                \App\Filament\Actions\TrashAction::make()->visible(fn() => Auth::user()?->hasRole('super_admin')),
             ])
             ->bulkActions([
-                Tables\Actions\DeleteBulkAction::make()->visible(fn() => Auth::user()?->hasRole('super_admin')),
+                \App\Filament\Actions\TrashBulkAction::make()->visible(fn() => Auth::user()?->hasRole('super_admin')),
             ]);
         // Très important : on s’assure que seules les commandes de CETTE pharmacie s’affichent
         // ->modifyQueryUsing(fn (Builder $q) => $q->where('pharmacy_id', $this->getOwnerRecord()->id));

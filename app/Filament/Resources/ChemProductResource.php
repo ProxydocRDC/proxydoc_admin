@@ -689,7 +689,7 @@ class ChemProductResource extends Resource
             ->send();
     }),
                     Tables\Actions\EditAction::make()->label('Modifier'),
-                    Tables\Actions\DeleteAction::make()->label('Supprimer'),
+                    \App\Filament\Actions\TrashAction::make()->label('Mettre à la corbeille'),
                 ]),
             ])->headerActions([
             Tables\Actions\Action::make('downloadTemplate')
@@ -906,7 +906,7 @@ BulkAction::make('bulkSetPrescription')
             ->success()
             ->send();
     }),
-                Tables\Actions\DeleteBulkAction::make()->label('Supprimer la sélection'),
+                \App\Filament\Actions\TrashBulkAction::make()->label('Mettre à la corbeille'),
             ]);
     }
 

@@ -88,15 +88,17 @@ public function updater()
     /** URL signée à afficher : image propre à la pharmacie sinon image du produit */
     public function displayImageUrl(int $ttlMinutes = 10): ?string
     {
-        // 1) image propre (clé ou URL) ?
         if ($this->image) {
             $key = $this->s3KeyFromUrlOrKey($this->image);
             if ($key) {
-                return Storage::disk('s3')->temporaryUrl($key, now()->addMinutes($ttlMinutes));
+                try {
+                    return Storage::disk('s3')->temporaryUrl($key, now()->addMinutes($ttlMinutes));
+                } catch (\Throwable $e) {
+                    // Fichier supprimé ou erreur S3
+                }
             }
         }
 
-        // 2) fallback : première image du produit
         return $this->product?->firstSignedImageUrl($ttlMinutes);
     }
 

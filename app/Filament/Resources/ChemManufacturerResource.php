@@ -151,10 +151,10 @@ class ChemManufacturerResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make()->label('Modifier'),
-                Tables\Actions\DeleteAction::make()->label('Supprimer'),
+                \App\Filament\Actions\TrashAction::make()->label('Mettre à la corbeille'),
             ])
             ->bulkActions([
-                Tables\Actions\DeleteBulkAction::make()->label('Supprimer la sélection'),
+                \App\Filament\Actions\TrashBulkAction::make()->label('Mettre à la corbeille'),
             ]);
     }
 

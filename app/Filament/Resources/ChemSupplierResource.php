@@ -1,6 +1,7 @@
 <?php
 namespace App\Filament\Resources;
 
+use App\Filament\Concerns\HasTrashableRecords;
 use App\Filament\Resources\ChemSupplierResource\Pages;
 use App\Models\ChemSupplier;
 use App\Models\User;
@@ -24,6 +25,7 @@ use Illuminate\Support\Facades\Auth;
 
 class ChemSupplierResource extends Resource
 {
+    use HasTrashableRecords;
     protected static ?string $model = ChemSupplier::class;
 
     /** Menu & labels */
@@ -193,13 +195,14 @@ class ChemSupplierResource extends Resource
             ])
             ->filters([
                 SelectFilter::make('status')->label('Statut')->options([1 => 'Actif', 0 => 'Inactif']),
+                ...array_filter([static::getTrashFilter()]),
             ])
             ->actions([
                 Tables\Actions\EditAction::make()->label('Modifier'),
-                Tables\Actions\DeleteAction::make()->label('Supprimer'),
+                \App\Filament\Actions\TrashAction::make()->label('Mettre à la corbeille'),
             ])
             ->bulkActions([
-                Tables\Actions\DeleteBulkAction::make()->label('Supprimer la sélection'),
+                \App\Filament\Actions\TrashBulkAction::make()->label('Mettre à la corbeille'),
             ]);
     }
 

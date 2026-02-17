@@ -503,13 +503,13 @@ class ChemHospitalResource extends Resource
                         }),
                     Tables\Actions\ViewAction::make()->label('Voir'),
                     Tables\Actions\EditAction::make()->label('Modifier'),
-                    Tables\Actions\DeleteAction::make()
+                    \App\Filament\Actions\TrashAction::make()
                         ->visible(fn() => Auth::user()?->hasRole('super_admin'))
                         ->label('Supprimer'),
                 ]),
             ])
             ->bulkActions([
-                Tables\Actions\DeleteBulkAction::make()
+                \App\Filament\Actions\TrashBulkAction::make()
                     ->visible(fn() => Auth::user()?->hasRole('super_admin')),
             ])->emptyStateHeading('Aucun hôpital visible')
 ->emptyStateDescription('Vérifiez vos filtres, vos droits ou le fournisseur actif.');

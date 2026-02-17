@@ -2,6 +2,9 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Actions\TrashAction;
+use App\Filament\Actions\TrashBulkAction;
+use App\Filament\Concerns\HasTrashableRecords;
 use Filament\Forms;
 use App\Models\User;
 use Filament\Tables;
@@ -16,6 +19,7 @@ use Filament\Forms\Components\{Group, Section, Hidden, Toggle, TextInput, DatePi
 
 class ProxyDoctorScheduleResource extends Resource
 {
+    use HasTrashableRecords;
     protected static ?string $model = ProxyDoctorSchedule::class;
 
     protected static ?string $navigationIcon  = 'heroicon-o-calendar';
@@ -83,11 +87,13 @@ class ProxyDoctorScheduleResource extends Resource
                 TextColumn::make('created_at')->dateTime('Y-m-d H:i')->label('Créé'),
             ])
             ->defaultSort('id', 'desc')
+            ->filters([...array_filter([static::getTrashFilter()])])
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
-            ]);
+                TrashAction::make(),
+            ])
+            ->bulkActions([TrashBulkAction::make()]);
     }
 
     public static function getPages(): array

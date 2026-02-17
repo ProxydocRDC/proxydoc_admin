@@ -15,7 +15,7 @@ class EditMainZone extends EditRecord
     {
         return [
             Actions\ViewAction::make(),
-            Actions\DeleteAction::make(),
+            \App\Filament\Actions\TrashAction::makeForPage(),
         ];
     }
 }

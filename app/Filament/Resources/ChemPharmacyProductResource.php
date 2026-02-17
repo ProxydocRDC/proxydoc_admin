@@ -22,6 +22,8 @@ use Filament\Tables\Columns\TextColumn;
 use Illuminate\Support\Facades\Storage;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
+use Illuminate\Validation\ValidationException;
+use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Tables\Filters\SelectFilter;
@@ -62,7 +64,7 @@ class ChemPharmacyProductResource extends Resource
         $u = Auth::user();
 
         if ($u?->hasRole('fournisseur')) {
-            $q->where('supplier_id', optional($u->supplier)->id);
+            $q->whereHas('pharmacy', fn ($p) => $p->where('supplier_id', optional($u->supplier)->id));
         }
 
         return $q;
@@ -497,27 +499,40 @@ currency*(USD/CDF), stock_qty, reorder_level, image(clé S3), description.'
                         // Sécurité minimale
                         $user = Auth::user();
 
-                        // Rassemblement des IDs produits choisis
                         $pharmacyId = (int) $data['pharmacy_id'];
-                        $productIds = array_values(array_unique($data['product_ids'] ?? []));
+                        $affectAll  = (bool) ($data['affect_all'] ?? false);
+
+                        if ($affectAll) {
+                            // Tous les produits non encore affectés à cette pharmacie
+                            $alreadyAssigned = ChemPharmacyProduct::query()
+                                ->where('pharmacy_id', $pharmacyId)
+                                ->pluck('product_id');
+                            $productIds = ChemProduct::query()
+                                ->whereNotIn('id', $alreadyAssigned)
+                                ->pluck('id')
+                                ->all();
+                        } else {
+                            $productIds = array_values(array_unique($data['product_ids'] ?? []));
+                        }
+
                         if (empty($productIds)) {
-                            // Filament notifiera ce message en toast
-                            Notification::make()
-                                ->title('Veuillez sélectionner au moins un produit.')
-                                ->warning()
-                                ->send();
-                            return;
+                            $message = $affectAll
+                                ? 'Aucun produit à affecter (tous sont déjà présents dans cette pharmacie).'
+                                : 'Veuillez sélectionner au moins un produit.';
+                            throw ValidationException::withMessages([
+                                $affectAll ? 'data.affect_all' : 'data.product_ids' => $message,
+                            ]);
                         }
                         // 1) Récupère les produits déjà présents dans cette pharmacie
-                        $existingIds = \App\Models\ChemPharmacyProduct::query()
+                        $existingIds = ChemPharmacyProduct::query()
                             ->where('pharmacy_id', $pharmacyId)
                             ->whereIn('product_id', $productIds)
                             ->pluck('product_id')
                             ->all();
-// 2) Calcule ceux à créer & à ignorer
+                        // 2) Calcule ceux à créer & à ignorer
                         $toCreateIds = array_values(array_diff($productIds, $existingIds));
-                        $created     = count($toCreateIds);
-                        $skipped     = count($productIds) - $created;
+                        $created     = 0;
+                        $skipped     = count($productIds) - count($toCreateIds);
 
                         // 3) Prépare le payload commun
                         $base = [
@@ -538,20 +553,15 @@ currency*(USD/CDF), stock_qty, reorder_level, image(clé S3), description.'
                             'updated_at'     => now(),
                         ];
                         // 4) Insert groupé (si nécessaire)
-                        if ($created > 0) {
-                            // $rows = array_map(fn($pid) => ['product_id' => $pid] + $base, $toCreateIds);
-
-                            // DB::transaction(function () use ($rows) {
-                            //     \App\Models\ChemPharmacyProduct::query()->insert($rows);
-                            // });
-                            DB::transaction(function () use ($productIds, $base, &$created) {
-                                foreach ($productIds as $pid) {
-                                    $product = \App\Models\ChemProduct::find($pid);
+                        if (count($toCreateIds) > 0) {
+                            DB::transaction(function () use ($toCreateIds, $base, &$created) {
+                                foreach ($toCreateIds as $pid) {
+                                    $product = ChemProduct::find($pid);
 
                                     // Prix de vente : si non saisi → on prend price_ref du produit
-                                    $salePrice = $base['sale_price'] ?? $product->price_ref;
+                                    $salePrice = $base['sale_price'] ?? $product?->price_ref;
 
-                                    \App\Models\ChemPharmacyProduct::create([
+                                    ChemPharmacyProduct::create([
                                         'product_id' => $pid,
                                         'sale_price' => $salePrice,
                                     ] + $base);
@@ -589,10 +599,10 @@ currency*(USD/CDF), stock_qty, reorder_level, image(clé S3), description.'
             ])
             ->actions([
                 Tables\Actions\EditAction::make()->label('Modifier'),
-                Tables\Actions\DeleteAction::make()->label('Supprimer'),
+                \App\Filament\Actions\TrashAction::make()->label('Mettre à la corbeille'),
             ])
             ->bulkActions([
-                Tables\Actions\DeleteBulkAction::make()->label('Supprimer sélection'),
+                \App\Filament\Actions\TrashBulkAction::make()->label('Mettre à la corbeille'),
             ])->filtersFormColumns(2)
         ->persistFiltersInSession()  // mémorise les filtres choisis
         ->persistSearchInSession()
@@ -655,13 +665,19 @@ currency*(USD/CDF), stock_qty, reorder_level, image(clé S3), description.'
 
                 Section::make('Produits à affecter')
                     ->schema([
-                        // Sélection multiple des produits
+                        Checkbox::make('affect_all')
+                            ->label('Affecter tous les produits disponibles à cette pharmacie')
+                            ->helperText('Cochez pour affecter en une fois tous les produits non encore présents dans la pharmacie.')
+                            ->live(),
+
+                        // Sélection multiple des produits (masqué si "affecter tous")
                         Select::make('product_ids')
                             ->label('Produits')
                             ->multiple()
-                            ->required()
                             ->searchable()
                             ->preload()
+                            ->visible(fn (callable $get) => ! $get('affect_all'))
+                            ->dehydrated(fn (callable $get) => ! $get('affect_all'))
                             ->options(function (callable $get) {
                                 $pharmacyId = $get('pharmacy_id');
                                 if (! $pharmacyId) {

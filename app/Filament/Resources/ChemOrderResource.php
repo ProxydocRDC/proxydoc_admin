@@ -1,6 +1,7 @@
 <?php
 namespace App\Filament\Resources;
 
+use App\Filament\Concerns\HasTrashableRecords;
 use App\Models\User;
 use App\Support\Sms;
 use Filament\Tables;
@@ -34,6 +35,7 @@ use App\Filament\Resources\ChemOrderResource\Pages;
 
 class ChemOrderResource extends Resource
 {
+    use HasTrashableRecords;
     // use RestrictToSupplier;
     protected static ?string $model = ChemOrder::class;
 
@@ -253,11 +255,12 @@ class ChemOrderResource extends Resource
                 SelectFilter::make('status')
                     ->label('Actif ?')
                     ->options([1 => 'Actif', 0 => 'Inactif']),
+                ...array_filter([static::getTrashFilter()]),
             ])
             ->actions([
                   ActionGroup::make([
                 Tables\Actions\EditAction::make()->label('Modifier'),
-                Tables\Actions\DeleteAction::make()->label('Supprimer'),
+                \App\Filament\Actions\TrashAction::make()->label('Mettre à la corbeille'),
 
                 /* 1) VALIDER la commande
              * Visible seulement si le statut n’est pas "validated"
@@ -479,7 +482,7 @@ class ChemOrderResource extends Resource
             ])
             ])
             ->bulkActions([
-                Tables\Actions\DeleteBulkAction::make()->label('Supprimer la sélection'),
+                \App\Filament\Actions\TrashBulkAction::make()->label('Mettre à la corbeille'),
             ]);
     }
 

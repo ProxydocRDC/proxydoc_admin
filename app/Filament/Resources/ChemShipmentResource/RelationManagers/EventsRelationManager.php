@@ -78,7 +78,7 @@ class EventsRelationManager extends RelationManager
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                \App\Filament\Actions\TrashAction::make(),
             ])
             ->paginated(false);
     }

@@ -1,6 +1,9 @@
 <?php
 namespace App\Filament\Resources;
 
+use App\Filament\Actions\TrashAction;
+use App\Filament\Actions\TrashBulkAction;
+use App\Filament\Concerns\HasTrashableRecords;
 use App\Filament\Resources\ProxyPatientResource\Pages;
 use App\Models\ProxyPatient;
 use Filament\Forms;
@@ -19,6 +22,7 @@ use Illuminate\Support\Facades\Auth;
 
 class ProxyPatientResource extends Resource
 {
+    use HasTrashableRecords;
     protected static ?string $model = ProxyPatient::class;
 
     protected static ?string $navigationIcon  = 'heroicon-o-user';
@@ -134,11 +138,12 @@ class ProxyPatientResource extends Resource
                     ->options(['A+' => 'A+', 'A-' => 'A-', 'B+' => 'B+', 'B-' => 'B-', 'AB+' => 'AB+', 'AB-' => 'AB-', 'O+' => 'O+', 'O-' => 'O-']),
                 Tables\Filters\SelectFilter::make('relation')->label('Relation')
                     ->options(['self' => 'Moi-même', 'child' => 'Enfant', 'parent' => 'Parent', 'spouse' => 'Conjoint', 'sibling' => 'Frère/soeur', 'friend' => 'Ami', 'other' => 'Autre']),
+                ...array_filter([static::getTrashFilter()]),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                TrashAction::make(),
             ])
             ->defaultSort('id', 'desc');
     }

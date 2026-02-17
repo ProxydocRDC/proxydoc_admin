@@ -2,6 +2,9 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Actions\TrashAction;
+use App\Filament\Actions\TrashBulkAction;
+use App\Filament\Concerns\HasTrashableRecords;
 use App\Filament\Resources\ProxyDoctorAvailabilityResource\Pages;
 use App\Models\ProxyDoctorAvailability;
 use Filament\Forms;
@@ -22,6 +25,7 @@ use Filament\Forms\Components\Select as FormSelect;
 use Filament\Tables\Enums\FiltersLayout;
 class ProxyDoctorAvailabilityResource extends Resource
 {
+    use HasTrashableRecords;
     protected static ?string $model = ProxyDoctorAvailability::class;
 
     protected static ?string $navigationIcon  = 'heroicon-o-clock';
@@ -312,6 +316,7 @@ class ProxyDoctorAvailabilityResource extends Resource
                     $label = implode(', ', array_map('ucfirst', $values));
                     return [($data['match_all'] ?? false ? 'Méthodes (toutes): ' : 'Méthodes: ') . $label];
                 })->columnSpan(12),
+                ...array_filter([static::getTrashFilter()]),
         ])->filtersLayout(FiltersLayout::AboveContent)   // ⬅️ important
         ->filtersFormColumns(12)                        // (optionnel) grille des filtres
         ->persistFiltersInSession()                  // (optionnel) se souvenir des filtres
@@ -321,8 +326,9 @@ class ProxyDoctorAvailabilityResource extends Resource
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
-            ]);
+                TrashAction::make(),
+            ])
+            ->bulkActions([TrashBulkAction::make()]);
     }
 
     public static function getPages(): array

@@ -1,6 +1,9 @@
 <?php
 namespace App\Filament\Resources;
 
+use App\Filament\Actions\TrashAction;
+use App\Filament\Actions\TrashBulkAction;
+use App\Filament\Concerns\HasTrashableRecords;
 use App\Filament\Resources\UserSubscriptionResource\Pages;
 use App\Models\SubscriptionPlan;
 use App\Models\UserSubscription;
@@ -24,6 +27,7 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 
 class UserSubscriptionResource extends \Filament\Resources\Resource
 {
+    use HasTrashableRecords;
     protected static ?string $model = UserSubscription::class;
 
     protected static ?string $navigationIcon  = 'heroicon-o-credit-card';
@@ -171,10 +175,11 @@ class UserSubscriptionResource extends \Filament\Resources\Resource
                 Tables\Filters\SelectFilter::make('subscription_status')->label('Statut')->options([
                     'pending' => 'En attente', 'active' => 'Actif', 'expired' => 'Expiré', 'cancelled' => 'Annulé',
                 ]),
+                ...array_filter([static::getTrashFilter()]),
             ])
             ->actions([
                 Tables\Actions\EditAction::make()->label('Modifier'),
-                Tables\Actions\DeleteAction::make()->label('Supprimer'),
+                TrashAction::make()->label('Mettre à la corbeille'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkAction::make('send_sms')
@@ -211,7 +216,7 @@ class UserSubscriptionResource extends \Filament\Resources\Resource
                     })
                     ->requiresConfirmation()
                     ->deselectRecordsAfterCompletion(),
-                Tables\Actions\DeleteBulkAction::make(),
+                TrashBulkAction::make(),
             ]);
     }
 

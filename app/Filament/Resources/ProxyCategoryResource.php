@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Concerns\HasTrashableRecords;
 use Filament\Forms;
 use Filament\Tables;
 use Filament\Forms\Form;
@@ -22,6 +23,7 @@ use Filament\Tables\Filters\SelectFilter;
 
 class ProxyCategoryResource extends Resource
 {
+    use HasTrashableRecords;
     protected static ?string $model = proxy_categories::class;
 
     protected static ?string $navigationIcon   = 'heroicon-o-tag';
@@ -89,18 +91,19 @@ class ProxyCategoryResource extends Resource
             ])
             ->filters([
                 SelectFilter::make('status')->label('Statut')->options([1 => 'Actif', 0 => 'Inactif']),
+                ...array_filter([static::getTrashFilter()]),
             ])
             ->actions([
                 Actions\EditAction::make(),
-                Actions\DeleteAction::make(),
-                Actions\RestoreAction::make(),
+                \App\Filament\Actions\TrashAction::make(),
+                \App\Filament\Actions\RestoreFromTrashAction::make(),
                 Actions\ForceDeleteAction::make()
                     ->visible(fn () => Auth::user()?->hasRole('super_admin')),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Actions\DeleteBulkAction::make(),
-                    Actions\RestoreBulkAction::make(),
+                    \App\Filament\Actions\TrashBulkAction::make(),
+                    \App\Filament\Actions\RestoreFromTrashAction::makeBulk(),
                     Actions\ForceDeleteBulkAction::make()
                         ->visible(fn () => Auth::user()?->hasRole('super_admin')),
                 ]),

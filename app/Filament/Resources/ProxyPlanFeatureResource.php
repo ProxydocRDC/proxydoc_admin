@@ -2,6 +2,9 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Actions\TrashAction;
+use App\Filament\Actions\TrashBulkAction;
+use App\Filament\Concerns\HasTrashableRecords;
 use Filament\Forms;
 use Filament\Tables;
 use App\Models\Feature;
@@ -19,6 +22,7 @@ use Illuminate\Database\Eloquent\Builder;
 
 class ProxyPlanFeatureResource extends Resource
 {
+    use HasTrashableRecords;
     protected static ?string $model = ProxyPlanFeature::class;
 
     protected static ?string $navigationGroup = 'Abonnements';
@@ -111,13 +115,14 @@ class ProxyPlanFeatureResource extends Resource
                 Tables\Filters\SelectFilter::make('is_included')
                     ->label('Incluse ?')
                     ->options([1 => 'Oui', 0 => 'Non']),
+                ...array_filter([static::getTrashFilter()]),
             ])
             ->actions([
                 Tables\Actions\EditAction::make()->label('Modifier'),
-                Tables\Actions\DeleteAction::make()->label('Supprimer'),
+                TrashAction::make()->label('Mettre à la corbeille'),
             ])
             ->bulkActions([
-                Tables\Actions\DeleteBulkAction::make()->label('Supprimer la sélection'),
+                TrashBulkAction::make()->label('Mettre à la corbeille'),
             ]);
     }
 

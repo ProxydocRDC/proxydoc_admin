@@ -14,7 +14,7 @@ class ViewMainZone extends ViewRecord
      protected function getHeaderActions(): array
     {
         return [
-            Actions\DeleteAction::make(),
+            \App\Filament\Actions\TrashAction::makeForPage(),
             Actions\EditAction::make(),
         ];
     }

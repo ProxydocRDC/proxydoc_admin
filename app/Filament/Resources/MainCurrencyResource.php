@@ -1,6 +1,9 @@
 <?php
 namespace App\Filament\Resources;
 
+use App\Filament\Actions\TrashAction;
+use App\Filament\Actions\TrashBulkAction;
+use App\Filament\Concerns\HasTrashableRecords;
 use Filament\Tables;
 use Filament\Forms\Form;
 use Filament\Tables\Table;
@@ -18,6 +21,7 @@ use App\Filament\Resources\MainCurrencyResource\Pages;
 
 class MainCurrencyResource extends Resource
 {
+    use HasTrashableRecords;
     protected static ?string $model = MainCurrency::class;
 
     // Icône du menu
@@ -134,17 +138,15 @@ protected static ?string $pluralModelLabel = 'Monnaies';
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
-            ->filters([
-                //
-            ])
+            ->filters([...array_filter([static::getTrashFilter()])])
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                TrashAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    TrashBulkAction::make(),
                 ]),
             ]);
     }

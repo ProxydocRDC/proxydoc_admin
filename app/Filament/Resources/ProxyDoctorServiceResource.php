@@ -2,6 +2,9 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Actions\TrashAction;
+use App\Filament\Actions\TrashBulkAction;
+use App\Filament\Concerns\HasTrashableRecords;
 use App\Filament\Resources\ProxyDoctorServiceResource\Pages;
 use App\Models\ProxyDoctorService;
 use App\Models\ProxyDoctor;
@@ -14,6 +17,7 @@ use Illuminate\Support\Facades\Auth;
 
 class ProxyDoctorServiceResource extends Resource
 {
+    use HasTrashableRecords;
     protected static ?string $model = ProxyDoctorService::class;
 
     protected static ?string $navigationIcon  = 'heroicon-o-academic-cap';
@@ -73,13 +77,15 @@ class ProxyDoctorServiceResource extends Resource
                         ->orderBy('fullname')
                         ->pluck('fullname','user_id')->toArray()
                     ),
+                ...array_filter([static::getTrashFilter()]),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                TrashAction::make(),
             ])
-            ->defaultSort('id','desc');
+            ->defaultSort('id','desc')
+            ->bulkActions([TrashBulkAction::make()]);
     }
 
     public static function getPages(): array

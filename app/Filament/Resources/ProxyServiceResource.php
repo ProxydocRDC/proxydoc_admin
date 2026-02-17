@@ -2,6 +2,9 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Actions\TrashAction;
+use App\Filament\Actions\TrashBulkAction;
+use App\Filament\Concerns\HasTrashableRecords;
 use Filament\Forms;
 use Filament\Tables;
 use App\Models\ProxyService;
@@ -15,6 +18,7 @@ use Filament\Forms\Components\{Group, Section, Hidden, Toggle, TextInput, Textar
 
 class ProxyServiceResource extends Resource
 {
+    use HasTrashableRecords;
     protected static ?string $model = ProxyService::class;
 
     protected static ?string $navigationIcon  = 'heroicon-o-briefcase';
@@ -108,11 +112,12 @@ class ProxyServiceResource extends Resource
             ])
             ->filters([
                 Tables\Filters\TernaryFilter::make('status')->label('Actif'),
+                ...array_filter([static::getTrashFilter()]),
             ])
             ->actions([
                 // Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                TrashAction::make(),
             ])
             ->defaultSort('id','desc');
     }

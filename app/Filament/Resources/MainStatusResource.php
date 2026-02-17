@@ -1,6 +1,9 @@
 <?php
 namespace App\Filament\Resources;
 
+use App\Filament\Actions\TrashAction;
+use App\Filament\Actions\TrashBulkAction;
+use App\Filament\Concerns\HasTrashableRecords;
 use Filament\Tables;
 use Filament\Forms\Form;
 use App\Models\MainStatus;
@@ -20,6 +23,7 @@ use App\Filament\Resources\MainStatusResource\Pages;
 
 class MainStatusResource extends Resource
 {
+    use HasTrashableRecords;
     protected static ?string $model = MainStatus::class;
 
     /** Menu & libellés */
@@ -111,15 +115,13 @@ TextColumn::make('id')
                 ->sortable()
                 ->toggleable(isToggledHiddenByDefault: true),
         ])
-        ->filters([
-            // Ajoute tes filtres ici si besoin
-        ])
+        ->filters([...array_filter([static::getTrashFilter()])])
         ->actions([
             Tables\Actions\EditAction::make()->label('Modifier'),
-            Tables\Actions\DeleteAction::make()->label('Supprimer'),
+            TrashAction::make()->label('Mettre à la corbeille'),
         ])
         ->bulkActions([
-            Tables\Actions\DeleteBulkAction::make()->label('Supprimer la sélection'),
+            TrashBulkAction::make()->label('Mettre à la corbeille'),
         ]);
     }
 

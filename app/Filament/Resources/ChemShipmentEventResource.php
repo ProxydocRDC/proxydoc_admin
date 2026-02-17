@@ -41,7 +41,7 @@ class ChemShipmentEventResource extends Resource
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    \App\Filament\Actions\TrashBulkAction::make(),
                 ]),
             ]);
     }

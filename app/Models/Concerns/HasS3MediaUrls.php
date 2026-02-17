@@ -19,21 +19,27 @@ trait HasS3MediaUrls
             return $path;
         }
 
-        // Disque principal (colonne `disk` si tu l'as, sinon default)
-        $primaryDisk = $this->disk ?? config('filesystems.default', 's3');
+        try {
+            $primaryDisk = $this->disk ?? config('filesystems.default', 's3');
+            $isPublic = false;
 
-        // Public/privé (colonne is_public si présente, sinon on suppose public)
-        $isPublic = false;
-        // $isPublic = property_exists($this, 'is_public') ? (bool) $this->is_public : true;
+            // Vérifier existence sans lever d'exception (catch en cas d'erreur S3/connectivité)
+            $disk = $primaryDisk;
+            try {
+                if (! Storage::disk($primaryDisk)->exists($path)) {
+                    $disk = Storage::disk('public')->exists($path) ? 'public' : $primaryDisk;
+                }
+            } catch (\Throwable $e) {
+                // Fichier peut-être supprimé ou erreur S3 : on tente quand même l'URL
+                $disk = $primaryDisk;
+            }
 
-        // Choix du disque effectif (fallback sur 'public' si le fichier n'existe pas sur le principal)
-        $disk = Storage::disk($primaryDisk)->exists($path)
-            ? $primaryDisk
-            : (Storage::disk('public')->exists($path) ? 'public' : $primaryDisk);
-
-        return $isPublic || $disk === 'public'
-            ? Storage::disk($disk)->url($path)
-            : Storage::disk($disk)->temporaryUrl($path, now()->addMinutes($ttl));
+            return $isPublic || $disk === 'public'
+                ? Storage::disk($disk)->url($path)
+                : Storage::disk($disk)->temporaryUrl($path, now()->addMinutes($ttl));
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 
     /** URLs pour un champ array/json (ex: 'images') */

@@ -1,6 +1,9 @@
 <?php
 namespace App\Filament\Resources;
 
+use App\Filament\Actions\TrashAction;
+use App\Filament\Actions\TrashBulkAction;
+use App\Filament\Concerns\HasTrashableRecords;
 use App\Models\User;
 use Filament\Tables;
 use Filament\Forms\Get;
@@ -34,6 +37,7 @@ use Illuminate\Validation\Rules\Password as PasswordRule;
 
 class UserResource extends Resource
 {
+    use HasTrashableRecords;
     protected static ?string $model           = User::class;
     protected static ?string $navigationGroup = 'Paramètres';
     protected static ?string $navigationLabel = 'Utilisateurs';
@@ -288,6 +292,7 @@ class UserResource extends Resource
         // ->label('Rôle')
         // ->options([1=>'Activé',2=>'Docteur',3=>'Livreur',4=>'Supprimé'])
         // ->searchable()->preload(),
+        ...array_filter([static::getTrashFilter()]),
     SelectFilter::make('default_role')
         ->label('Rôle')
         ->options([1=>'Activé',2=>'Docteur',3=>'Livreur',4=>'Supprimé'])
@@ -353,7 +358,7 @@ class UserResource extends Resource
                         }),
                     Tables\Actions\ViewAction::make(),
                     Tables\Actions\EditAction::make(),
-                    Tables\Actions\DeleteAction::make(),
+                    TrashAction::make(),
                 ]),
             ])
             ->bulkActions([
@@ -417,7 +422,7 @@ class UserResource extends Resource
                                 ->success()
                                 ->send();
                         }),
-                    Tables\Actions\DeleteBulkAction::make(),
+                    TrashBulkAction::make(),
                 ]),
             ]);
     }

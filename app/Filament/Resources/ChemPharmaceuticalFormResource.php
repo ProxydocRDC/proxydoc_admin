@@ -84,13 +84,13 @@ class ChemPharmaceuticalFormResource extends Resource
             ->actions([
                 Tables\Actions\ViewAction::make()->label('Voir'),
                 Tables\Actions\EditAction::make()->label('Modifier'),
-                Tables\Actions\DeleteAction::make()->label('Supprimer'),
+                \App\Filament\Actions\TrashAction::make()->label('Mettre à la corbeille'),
                 Tables\Actions\ForceDeleteAction::make(),
                 Tables\Actions\RestoreAction::make(),
             ])
             ->bulkActions([
-                Tables\Actions\DeleteBulkAction::make()->label('Supprimer'),
-                Tables\Actions\ForceDeleteBulkAction::make(),
+\App\Filament\Actions\TrashBulkAction::make()->label('Mettre à la corbeille'),
+                    Tables\Actions\ForceDeleteBulkAction::make(),
                 Tables\Actions\RestoreBulkAction::make(),
             ])
             ->defaultSort('id', 'desc');

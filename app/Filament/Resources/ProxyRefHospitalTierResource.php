@@ -2,6 +2,9 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Actions\TrashAction;
+use App\Filament\Actions\TrashBulkAction;
+use App\Filament\Concerns\HasTrashableRecords;
 use App\Models\ProxyRefHospitalTier;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -13,6 +16,7 @@ use Filament\Tables\Columns\BadgeColumn;
 
 class ProxyRefHospitalTierResource extends Resource
 {
+    use HasTrashableRecords;
     protected static ?string $model = ProxyRefHospitalTier::class;
 
     protected static ?string $navigationIcon  = 'heroicon-o-building-library';
@@ -82,13 +86,14 @@ class ProxyRefHospitalTierResource extends Resource
                 Tables\Filters\SelectFilter::make('status')
                     ->label('Actif ?')
                     ->options([1 => 'Actif', 0 => 'Inactif']),
+                ...array_filter([static::getTrashFilter()]),
             ])
             ->actions([
                 Tables\Actions\EditAction::make()->label('Modifier'),
-                Tables\Actions\DeleteAction::make()->label('Supprimer'),
+                TrashAction::make()->label('Mettre à la corbeille'),
             ])
             ->bulkActions([
-                Tables\Actions\DeleteBulkAction::make()->label('Supprimer la sélection'),
+                TrashBulkAction::make()->label('Mettre à la corbeille'),
             ]);
     }
 

@@ -13,7 +13,7 @@ class EditFeature extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            Actions\DeleteAction::make(),
+            \App\Filament\Actions\TrashAction::makeForPage(),
         ];
     }
 }

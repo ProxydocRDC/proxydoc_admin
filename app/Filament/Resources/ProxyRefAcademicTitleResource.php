@@ -2,6 +2,9 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Actions\TrashAction;
+use App\Filament\Actions\TrashBulkAction;
+use App\Filament\Concerns\HasTrashableRecords;
 use App\Models\ProxyRefAcademicTitle;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -12,6 +15,7 @@ use Filament\Tables\Columns\TextColumn;
 
 class ProxyRefAcademicTitleResource extends Resource
 {
+    use HasTrashableRecords;
     protected static ?string $model = ProxyRefAcademicTitle::class;
 
     protected static ?string $navigationGroup = 'Référentiels';
@@ -40,11 +44,13 @@ class ProxyRefAcademicTitleResource extends Resource
             TextColumn::make('status')->label('Statut')->badge()
                 ->color(fn ($state) => (int)$state === 1 ? 'success' : 'danger')
                 ->formatStateUsing(fn ($state) => (int)$state === 1 ? 'Actif' : 'Inactif'),
-        ])->actions([
+        ])
+            ->filters([...array_filter([static::getTrashFilter()])])
+            ->actions([
             Tables\Actions\EditAction::make(),
-            Tables\Actions\DeleteAction::make(),
+            TrashAction::make(),
         ])->bulkActions([
-            Tables\Actions\DeleteBulkAction::make(),
+            TrashBulkAction::make(),
         ]);
     }
 

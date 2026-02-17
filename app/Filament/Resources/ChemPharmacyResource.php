@@ -377,7 +377,7 @@ supplier_id (id) OU supplier_name (nom), user_id (id) OU user_email (email) OU u
                         static::getUrl('edit', ['record' => $record]) . '#relationManager=orders'
                     ),
                 Tables\Actions\EditAction::make()->label('Modifier'),
-                Tables\Actions\DeleteAction::make()->label('Supprimer'),
+                \App\Filament\Actions\TrashAction::make()->label('Mettre à la corbeille'),
 
                     Action::make('clearImages')
                         ->label('Vider images')
@@ -432,7 +432,7 @@ supplier_id (id) OU supplier_name (nom), user_id (id) OU user_email (email) OU u
             ])
             ])
             ->bulkActions([
-                Tables\Actions\DeleteBulkAction::make()->label('Supprimer la sélection'),
+                \App\Filament\Actions\TrashBulkAction::make()->label('Mettre à la corbeille'),
             ]);
     }
 

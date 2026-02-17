@@ -2,6 +2,9 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Actions\TrashAction;
+use App\Filament\Actions\TrashBulkAction;
+use App\Filament\Concerns\HasTrashableRecords;
 use App\Filament\Resources\MainPaymentResource\Pages;
 use App\Models\MainPayment;
 use Filament\Forms;
@@ -19,6 +22,7 @@ use App\Exports\MainPaymentsExport;
 
 class MainPaymentResource extends Resource
 {
+    use HasTrashableRecords;
     protected static ?string $model = MainPayment::class;
 
     protected static ?string $navigationIcon  = 'heroicon-m-credit-card';
@@ -165,6 +169,7 @@ Tables\Columns\TextColumn::make('total_amount')
                 SelectFilter::make('currency')
                     ->options(['USD' => 'USD', 'CDF' => 'CDF']),
 
+                ...array_filter([static::getTrashFilter()]),
                 Filter::make('created_at')
                     ->label('Période')
                     ->form([
@@ -204,18 +209,20 @@ Tables\Columns\TextColumn::make('total_amount')
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                TrashAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    TrashBulkAction::make(),
                 ]),
             ]);
     }
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->withoutGlobalScopes([SoftDeletingScope::class]);
+        $query = parent::getEloquentQuery()->withoutGlobalScopes([SoftDeletingScope::class]);
+
+        return static::applyTrashFilter($query);
     }
 
     // created_by / updated_by

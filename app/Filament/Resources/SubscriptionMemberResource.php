@@ -2,6 +2,9 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Actions\TrashAction;
+use App\Filament\Actions\TrashBulkAction;
+use App\Filament\Concerns\HasTrashableRecords;
 use App\Filament\Resources\SubscriptionMemberResource\Pages;
 use App\Models\SubscriptionMember;
 use Filament\Forms;
@@ -16,6 +19,7 @@ use Filament\Forms\Components\Hidden;
 
 class SubscriptionMemberResource extends \Filament\Resources\Resource
 {
+    use HasTrashableRecords;
     protected static ?string $model = SubscriptionMember::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-user-group';
@@ -74,12 +78,12 @@ class SubscriptionMemberResource extends \Filament\Resources\Resource
                 TextColumn::make('seat_count')->label('Places')->alignRight(),
                 TextColumn::make('accepted_at')->label('Accepté le')->dateTime(),
             ])
-            ->filters([])
+            ->filters([...array_filter([static::getTrashFilter()])])
             ->actions([
                 Tables\Actions\EditAction::make()->label('Modifier'),
-                Tables\Actions\DeleteAction::make()->label('Supprimer'),
+                TrashAction::make()->label('Mettre à la corbeille'),
             ])
-            ->bulkActions([Tables\Actions\DeleteBulkAction::make()]);
+            ->bulkActions([TrashBulkAction::make()]);
     }
 
     public static function getPages(): array
