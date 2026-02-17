@@ -18,6 +18,13 @@
                         ])
                     >
                         {{ $label }}
+                        <span @class([
+                            'ml-1.5 rounded-full px-2 py-0.5 text-xs font-medium',
+                            'bg-white/25 text-white' => $activeModel === $modelClass,
+                            'bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-300' => $activeModel !== $modelClass,
+                        ])>
+                            {{ $this->getTrashCountForModel($modelClass) }}
+                        </span>
                     </a>
                 @endforeach
             </div>

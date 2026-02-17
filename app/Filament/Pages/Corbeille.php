@@ -81,6 +81,21 @@ class Corbeille extends Page implements HasForms, HasTable
         return $result;
     }
 
+    /**
+     * Retourne le nombre d'éléments en corbeille (status = 0) pour un modèle donné.
+     */
+    public function getTrashCountForModel(string $modelClass): int
+    {
+        if (! class_exists($modelClass)) {
+            return 0;
+        }
+        $instance = new $modelClass;
+        if (! Schema::hasColumn($instance->getTable(), 'status')) {
+            return 0;
+        }
+        return $modelClass::query()->where('status', 0)->count();
+    }
+
     public function table(Table $table): Table
     {
         $modelClass = $this->activeModel;
