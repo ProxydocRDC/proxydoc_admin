@@ -737,11 +737,11 @@ currency*(USD/CDF), stock_qty, reorder_level, image(clé S3), description.'
     {
         // total global de lignes “produit en pharmacie”
         $u    = Auth::user();
-        $base = ChemPharmacy::query();
+        $base = ChemPharmacyProduct::query()->withoutGlobalScopes([SoftDeletingScope::class]);
 
         if (! $u?->hasRole('super_admin')) {
             $sid = $u?->supplier?->id ?? 0;
-            $base->where('supplier_id', $sid);
+            $base->whereHas('pharmacy', fn ($p) => $p->where('supplier_id', $sid));
         }
 
         return (string) $base->count();
