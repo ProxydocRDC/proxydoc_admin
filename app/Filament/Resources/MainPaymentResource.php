@@ -24,11 +24,13 @@ class MainPaymentResource extends Resource
 {
     use HasTrashableRecords;
     protected static ?string $model = MainPayment::class;
+    protected static ?string $slug = 'transactions';
 
-    protected static ?string $navigationIcon  = 'heroicon-m-credit-card';
-    protected static ?string $navigationGroup = 'Finances';
-    protected static ?string $pluralLabel     = 'Paiements';
-    protected static ?string $label           = 'Paiement';
+    protected static ?string $navigationIcon   = 'heroicon-m-banknotes';
+    protected static ?string $navigationGroup  = 'Finances';
+    protected static ?string $navigationLabel  = 'Transactions';
+    protected static ?string $pluralLabel      = 'Transactions';
+    protected static ?string $label            = 'Transaction';
 
     public static function form(Form $form): Form
     {
@@ -183,6 +185,7 @@ Tables\Columns\TextColumn::make('total_amount')
                                 $qq->whereDate('created_at', '<=', $data['to']));
                     }),
             ])
+            ->persistFiltersInSession()
             ->headerActions([
                 Tables\Actions\Action::make('export')
                     ->label('Exporter')
@@ -244,8 +247,8 @@ Tables\Columns\TextColumn::make('total_amount')
         return [
             'index' => Pages\ListMainPayments::route('/'),
             'create' => Pages\CreateMainPayment::route('/create'),
-            'edit' => Pages\EditMainPayment::route('/{record}/edit'),
-            // 'view' => Pages\ViewMainPayment::route('/{record}'),
+            'view'   => Pages\ViewMainPayment::route('/{record}'),
+            'edit'   => Pages\EditMainPayment::route('/{record}/edit'),
         ];
     }
 

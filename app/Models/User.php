@@ -80,9 +80,8 @@ class User extends Authenticatable implements FilamentUser, HasName
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
-            'password'          => 'hashed',
-            'status'            => 'integer',
+            'password' => 'hashed',
+            'status'   => 'integer',
         ];
     }
 
@@ -136,6 +135,16 @@ class User extends Authenticatable implements FilamentUser, HasName
     public function getFullnameAttribute(): string
     {
         return trim(($this->firstname ?? '') . ' ' . ($this->lastname ?? ''));
+    }
+
+    /**
+     * Vérifie si l'utilisateur a terminé le processus de création de compte.
+     * Basé sur status et OTP : status 5 = "en cours de création, doit valider l'OTP".
+     * Les autres statuts (1, 2, 3, 4) indiquent que l'OTP a été validé ou que le processus est plus avancé.
+     */
+    public function hasCompletedRegistration(): bool
+    {
+        return (int) $this->status !== 5;
     }
 
     // Accès direct aux services du médecin (si l'user est médecin)

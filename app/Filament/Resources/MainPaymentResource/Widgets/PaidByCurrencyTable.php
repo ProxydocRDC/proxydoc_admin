@@ -42,10 +42,10 @@ class PaidByCurrencyTable extends BaseWidget
             Tables\Columns\TextColumn::make('tx_count')->label('Transactions')->numeric()->sortable(),
             Tables\Columns\TextColumn::make('total_amount')
                 ->label('Total payé')
-                ->formatStateUsing(fn ($state, $record) => number_format((float) $state, 2, ',', ' ') . ' ' . ($r->currency ?? '')),
+                ->formatStateUsing(fn ($state, $record) => number_format((float) $state, 2, ',', ' ') . ' ' . ($record->currency ?? '')),
             Tables\Columns\TextColumn::make('total_approved')
                 ->label('Payé approuvé')
-                ->formatStateUsing(fn ($state, $record) => number_format((float) $state, 2, ',', ' ') . ' ' . ($r->currency ?? '')),
+                ->formatStateUsing(fn ($state, $record) => number_format((float) $state, 2, ',', ' ') . ' ' . ($record->currency ?? '')),
         ];
     }
 }

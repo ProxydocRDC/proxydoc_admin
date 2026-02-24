@@ -9,6 +9,16 @@ class ListMainPayments extends ListRecords
 {
     protected static string $resource = MainPaymentResource::class;
 
+    public function mount(): void
+    {
+        parent::mount();
+
+        $filters = request()->query('tableFilters', []);
+        if (! empty($filters)) {
+            $this->tableFilters = array_merge($this->tableFilters ?? [], $filters);
+        }
+    }
+
     // 👉 doit être public
     public function getHeaderWidgets(): array
     {

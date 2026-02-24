@@ -30,7 +30,10 @@ use Filament\Tables\Actions\ActionGroup;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Forms\Components\FileUpload;
 use Filament\Tables\Columns\SelectColumn;
+use Filament\Forms\Components\DatePicker;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
+use Illuminate\Database\Eloquent\Builder;
 use Filament\Resources\Pages\CreateRecord;
 use App\Filament\Resources\UserResource\Pages;
 use Illuminate\Validation\Rules\Password as PasswordRule;
@@ -189,17 +192,21 @@ class UserResource extends Resource
                 SelectColumn::make('status')
                     ->label('Statut')
                     ->options([
+                        '0' => 'Supprimé',
                         '1' => 'Activé',
                         '2' => 'En attente',
                         '3' => 'Désactivé',
-                        '4' => 'Supprimé',
+                        '4' => 'Validé, attente infos',
+                        '5' => 'En cours (OTP à valider)',
                     ])->disabled(fn() => Auth::user()?->hasRole('viewer')) // 🔒 désactive si rôle = viewer
                     ->afterStateUpdated(function ($record, $state) {
                         $statusText = match ($state) {
+                            '0'     => 'Supprimé',
                             '1'     => 'Activé',
                             '2'     => 'En attente',
                             '3'     => 'Désactivé',
-                            '4'     => 'Supprimé',
+                            '4'     => 'Validé, attente infos',
+                            '5'     => 'En cours (OTP à valider)',
                             default => 'Inconnu',
                         };
 
@@ -211,6 +218,12 @@ class UserResource extends Resource
                     })
                     ->sortable()
                     ->searchable(),
+                TextColumn::make('processus_termine')
+                    ->label('Processus terminé')
+                    ->badge()
+                    ->getStateUsing(fn (User $record) => $record->hasCompletedRegistration() ? 'Oui' : 'Non')
+                    ->color(fn (User $record) => $record->hasCompletedRegistration() ? 'success' : 'warning')
+                    ->toggleable(),
                 TextColumn::make('roles')
                     ->label('Rôles')
                     ->badge()
@@ -293,10 +306,49 @@ class UserResource extends Resource
         // ->options([1=>'Activé',2=>'Docteur',3=>'Livreur',4=>'Supprimé'])
         // ->searchable()->preload(),
         ...array_filter([static::getTrashFilter()]),
-    SelectFilter::make('default_role')
-        ->label('Rôle')
-        ->options([1=>'Activé',2=>'Docteur',3=>'Livreur',4=>'Supprimé'])
-        ->searchable()->preload(),
+        SelectFilter::make('default_role')
+            ->label('Rôle')
+            ->options([1=>'Activé',2=>'Docteur',3=>'Livreur',4=>'Supprimé'])
+            ->searchable()->preload(),
+        Filter::make('created_at')
+            ->label('Date d\'inscription')
+            ->form([
+                DatePicker::make('created_from')->label('Du')->native(false),
+                DatePicker::make('created_to')->label('Au')->native(false),
+            ])
+            ->query(function (Builder $query, array $data): Builder {
+                return $query
+                    ->when($data['created_from'] ?? null, fn (Builder $q) => $q->whereDate('created_at', '>=', $data['created_from']))
+                    ->when($data['created_to'] ?? null, fn (Builder $q) => $q->whereDate('created_at', '<=', $data['created_to']));
+            }),
+        Filter::make('processus')
+            ->label('Processus')
+            ->form([
+                \Filament\Forms\Components\Select::make('value')
+                    ->label('Processus')
+                    ->options([
+                        'termine'  => 'Terminé (tél. vérifié par OTP)',
+                        'en_cours' => 'En cours (OTP à valider)',
+                    ])
+                    ->placeholder('— Tous —'),
+            ])
+            ->query(function (Builder $query, array $data): Builder {
+                return match ($data['value'] ?? null) {
+                    'termine'  => $query->where('status', '!=', 5),
+                    'en_cours' => $query->where('status', 5),
+                    default    => $query,
+                };
+            }),
+        SelectFilter::make('status')
+            ->label('Statut compte')
+            ->options([
+                0 => 'Supprimé',
+                1 => 'Activé',
+                2 => 'En attente',
+                3 => 'Désactivé',
+                4 => 'Validé, attente infos',
+                5 => 'En cours (OTP à valider)',
+            ]),
         ])
             ->persistFiltersInSession()
             ->filtersFormColumns(1)

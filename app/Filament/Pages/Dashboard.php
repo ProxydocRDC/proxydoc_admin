@@ -9,6 +9,8 @@ class Dashboard extends BaseDashboard
     public function getWidgets(): array
     {
         return [
+            \App\Filament\Widgets\TransactionsQuickAccess::class,
+            \App\Filament\Widgets\WeeklyRegistrationsTable::class,
             // Statistiques
             // \App\Filament\Widgets\ServiceStatsOverview::class,
             // \App\Filament\Widgets\CatalogStatsOverview::class,
