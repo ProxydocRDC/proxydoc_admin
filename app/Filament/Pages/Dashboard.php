@@ -2,10 +2,25 @@
 
 namespace App\Filament\Pages;
 
+use Filament\Notifications\Notification;
 use Filament\Pages\Dashboard as BaseDashboard;
+use Illuminate\Support\Facades\Session;
 
 class Dashboard extends BaseDashboard
 {
+    public function mount(): void
+    {
+        parent::mount();
+
+        if ($message = Session::pull('error')) {
+            Notification::make()
+                ->title('Accès refusé')
+                ->body($message)
+                ->danger()
+                ->send();
+        }
+    }
+
     public function getWidgets(): array
     {
         return [
