@@ -31,6 +31,8 @@ use Filament\Tables\Columns\ImageColumn;
 use Filament\Forms\Components\FileUpload;
 use Filament\Tables\Columns\SelectColumn;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Tabs;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Illuminate\Database\Eloquent\Builder;
@@ -50,34 +52,83 @@ class UserResource extends Resource
     {
         return $form
             ->schema([
-                Group::make([
-                    Section::make("Formulaire d'actualité")->schema([
-                        TextInput::make('firstname')
-                            ->label('prénom')
-                            ->required()
-                            ->columnSpan(6),
-                        TextInput::make('lastname')
-                            ->label('Nom')
-                            ->required()
-                            ->columnSpan(6),
-                        TextInput::make('phone')
-                            ->tel()
-                            ->required()
-                        // normalise le numéro (ex. +243..., enlève espaces)
-                            ->dehydrateStateUsing(fn($state) => preg_replace('/\s+/', '', trim($state)))
-                            ->unique(
-                                table: User::class,
-                                column: 'phone',
-                                ignoreRecord: true,
-                                modifyRuleUsing: fn(Unique $rule) => $rule->whereNull('deleted_at')
-                            )
-                            ->validationMessages([
-                                'unique' => 'Ce numéro de téléphone est déjà utilisé.',
-                            ])
-                            ->live(onBlur: true)
-                        // ->tel()
-                            ->required()->columnSpan(6)
-                            ->maxLength(20),
+                Tabs::make('Tabs')
+                    ->tabs([
+                        Tabs\Tab::make('Identité')
+                            ->schema([
+                                TextInput::make('firstname')
+                                    ->label('Prénom')
+                                    ->maxLength(50)
+                                    ->columnSpan(4),
+                                TextInput::make('lastname')
+                                    ->label('Nom')
+                                    ->maxLength(50)
+                                    ->columnSpan(4),
+                                TextInput::make('username')
+                                    ->label('Nom d\'utilisateur')
+                                    ->maxLength(100)
+                                    ->unique(
+                                        table: User::class,
+                                        column: 'username',
+                                        ignoreRecord: true,
+                                        modifyRuleUsing: fn(Unique $rule) => $rule->whereNull('deleted_at')
+                                    )
+                                    ->columnSpan(4),
+                                DatePicker::make('birth_date')
+                                    ->label('Date de naissance')
+                                    ->native(false)
+                                    ->columnSpan(4),
+                                Select::make('gender')
+                                    ->label('Genre')
+                                    ->options(['M' => 'Masculin', 'F' => 'Féminin'])
+                                    ->columnSpan(4),
+                                FileUpload::make('profile')
+                                    ->label('Photo de profil')
+                                    ->directory('uploads/images/profiles')
+                                    ->disk('s3')
+                                    ->visibility('private')
+                                    ->columnSpan(4),
+                            ])->columns(12),
+                        Tabs\Tab::make('Contact')
+                            ->schema([
+                                Select::make('phone_country_code')
+                                    ->label('Indicatif pays')
+                                    ->options([
+                                        '243' => '+243 (RDC)',
+                                        '33'  => '+33 (France)',
+                                        '32'  => '+32 (Belgique)',
+                                        '237' => '+237 (Cameroun)',
+                                        '242' => '+242 (Congo)',
+                                        '250' => '+250 (Rwanda)',
+                                        '256' => '+256 (Ouganda)',
+                                        '254' => '+254 (Kenya)',
+                                    ])
+                                    ->default('243')
+                                    ->dehydrated(false)
+                                    ->columnSpan(2),
+                                TextInput::make('phone')
+                                    ->label('Numéro')
+                                    ->tel()
+                                    ->required()
+                                    ->dehydrateStateUsing(function ($state, $livewire) {
+                                        $code = $livewire->data['phone_country_code'] ?? '243';
+                                        $num  = preg_replace('/\D/', '', trim($state ?? ''));
+                                        return $num ? '+' . $code . $num : null;
+                                    })
+                                    ->unique(
+                                        table: User::class,
+                                        column: 'phone',
+                                        ignoreRecord: true,
+                                        modifyRuleUsing: fn (Unique $rule) => $rule->whereNull('deleted_at')
+                                    )
+                                    ->validationMessages([
+                                        'unique' => 'Ce numéro de téléphone est déjà utilisé.',
+                                    ])
+                                    ->live(onBlur: true)
+                                    ->placeholder('8XX XXX XXXX')
+                                    ->helperText('Sans indicatif, le préfixe sélectionné sera ajouté.')
+                                    ->columnSpan(4)
+                                    ->maxLength(20),
                         TextInput::make('email')
                             ->email()->columnSpan(6)
                             ->maxLength(250)
@@ -93,9 +144,10 @@ class UserResource extends Resource
                             ->validationMessages([
                                 'unique' => 'Cet email est déjà utilisé.',
                             ])
-                            ->live(onBlur: true),
-
-                        // Mot de passe
+                            ->columnSpan(6),
+                            ])->columns(12),
+                        Tabs\Tab::make('Compte')
+                            ->schema([
                         TextInput::make('password')
                             ->label('Mot de passe')
                             ->password()
@@ -122,11 +174,13 @@ class UserResource extends Resource
                             ->dehydrated()
                             ->visible(fn($livewire) => $livewire instanceof CreateRecord || $livewire instanceof EditRecord)
                             ->options([
-                                '1' => 'Activé',
-                                '2' => 'Docteur',
-                                '3' => 'Livreur',
-                                '4' => 'Supprimé',
-                            ])->columnSpan(6),
+                                1 => 'Activé',
+                                2 => 'Docteur',
+                                3 => 'Livreur',
+                                4 => 'Supprimé',
+                                5 => 'Patient',
+                            ])
+                            ->columnSpan(6),
                         Select::make('roles')
                             ->relationship('roles', 'name')
                             ->multiple()
@@ -137,27 +191,49 @@ class UserResource extends Resource
                                 $set('default_role', $state[0] ?? null);
                             })
                             ->columnSpan(6),
-                        FileUpload::make('profile')
-                            ->label('Photo de profil')
-                            ->directory('uploads/images/profiles')
-                            ->disk('s3')
-                            ->visibility('private')
-                            ->columnSpan(12),
-// Champ caché pour stocker l'ID du rôle par défaut
-                        Hidden::make('default_role')
-                            ->dehydrated(true) // envoyer en base
-                            ->afterStateHydrated(function ($state, Set $set, Get $get) {
-                                // À l’ouverture du form : si vide, initialise depuis "roles"
-                                if (blank($state)) {
-                                    $roles = $get('roles') ?? [];
-                                    $set('default_role', $roles[0] ?? null);
-                                }
-                            }),
-                        TextInput::make('account_id')
+                        Select::make('status')
+                            ->label('Statut compte')
                             ->default(1)
-                            ->numeric()->hidden(),
-                        Hidden::make('status')->default(1),
-                    ])->columnS(12),
+                            ->options([
+                                0 => 'Supprimé',
+                                1 => 'Activé',
+                                2 => 'En attente',
+                                3 => 'Désactivé',
+                                4 => 'Validé, attente infos',
+                                5 => 'En cours (OTP à valider)',
+                            ])
+                            ->columnSpan(6),
+                        Hidden::make('account_id')
+                            ->default(null)
+                            ->dehydrated(true),
+                        Placeholder::make('created_by_info')
+                            ->label('Créé par')
+                            ->content('Sera défini automatiquement (utilisateur connecté)')
+                            ->visible(fn ($livewire) => $livewire instanceof CreateRecord)
+                            ->columnSpan(4),
+                        Placeholder::make('otp_info')
+                            ->label('OTP')
+                            ->content('Généré automatiquement (unique)')
+                            ->visible(fn ($livewire) => $livewire instanceof CreateRecord)
+                            ->columnSpan(4),
+                        Placeholder::make('otp_display')
+                            ->label('OTP actuel')
+                            ->content(fn ($record) => $record?->otp ?? '—')
+                            ->visible(fn ($livewire) => $livewire instanceof EditRecord)
+                            ->columnSpan(4),
+                        TextInput::make('ip_address')
+                            ->label('Adresse IP')
+                            ->maxLength(100)
+                            ->columnSpan(4),
+                        TextInput::make('fcm_token')
+                            ->label('FCM Token')
+                            ->maxLength(1000)
+                            ->columnSpan(4),
+                        TextInput::make('public_token')
+                            ->label('Token public')
+                            ->maxLength(1000)
+                            ->columnSpan(4),
+                    ])->columns(12),
                 ])->columnSpanFull(),
 
             ]);
@@ -276,11 +352,6 @@ class UserResource extends Resource
                 TextColumn::make('city')
                     ->label('Ville')
                     ->searchable(),
-                TextColumn::make('root_store')
-                    ->numeric()
-                    ->toggleable(isToggledHiddenByDefault: true)
-                    ->sortable(),
-
                 TextColumn::make('ip_address')
                     ->toggleable(isToggledHiddenByDefault: true)
                     ->searchable(),

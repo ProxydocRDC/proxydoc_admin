@@ -80,8 +80,10 @@ class User extends Authenticatable implements FilamentUser, HasName
     protected function casts(): array
     {
         return [
-            'password' => 'hashed',
-            'status'   => 'integer',
+            'password'      => 'hashed',
+            'status'       => 'integer',
+            'birth_date'   => 'date',
+            'last_activity' => 'datetime',
         ];
     }
 
