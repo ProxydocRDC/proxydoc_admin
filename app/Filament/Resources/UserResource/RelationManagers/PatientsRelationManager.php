@@ -58,13 +58,13 @@ class PatientsRelationManager extends RelationManager
             ->columns([
                 TextColumn::make('fullname')->label('Nom')->searchable()->sortable(),
                 TextColumn::make('birthdate')->date('d/m/Y')->label('Naissance')->sortable(),
-                TextColumn::make('gender')->label('Genre')->formatStateUsing(fn ($s) => match ($s) {
-                    'male' => 'Homme', 'female' => 'Femme', default => $s ?? '—',
+                TextColumn::make('gender')->label('Genre')->formatStateUsing(fn ($state) => match ($state) {
+                    'male' => 'Homme', 'female' => 'Femme', default => $state ?? '—',
                 }),
                 TextColumn::make('blood_group')->label('Groupe sanguin'),
-                TextColumn::make('relation')->label('Relation')->formatStateUsing(fn ($s) => match ($s) {
+                TextColumn::make('relation')->label('Relation')->formatStateUsing(fn ($state) => match ($state) {
                     'self' => 'Moi-même', 'child' => 'Enfant', 'parent' => 'Parent',
-                    'spouse' => 'Conjoint', 'sibling' => 'Frère/soeur', 'friend' => 'Ami', default => $s ?? '—',
+                    'spouse' => 'Conjoint', 'sibling' => 'Frère/soeur', 'friend' => 'Ami', default => $state ?? '—',
                 }),
                 TextColumn::make('phone')->label('Téléphone')->toggleable(),
                 TextColumn::make('email')->label('Email')->toggleable(),
