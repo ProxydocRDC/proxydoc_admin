@@ -103,6 +103,18 @@ class User extends Authenticatable implements FilamentUser, HasName
     {
         return $this->hasMany(ProxyPatient::class, 'user_id');
     }
+
+    /** Fiche patient "moi-même" (relation self) */
+    public function selfPatient()
+    {
+        return $this->hasOne(ProxyPatient::class, 'user_id')->where('relation', 'self');
+    }
+
+    /** Vérifie si l'utilisateur a une fiche patient (relation self) */
+    public function hasPatientRecord(): bool
+    {
+        return $this->selfPatient()->exists();
+    }
     public function customerAdresse()
     {
         return $this->hasMany(MainUserAddress::class, 'user_id');

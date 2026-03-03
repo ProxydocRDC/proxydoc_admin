@@ -39,9 +39,11 @@ class ProxyPatientResource extends Resource
                     Hidden::make('updated_by')->default(fn() => Auth::id())->dehydrated(),
                     Select::make('user_id')
                         ->label('Utilisateur parent')
-                        ->relationship('user', 'firstname') // <-- pas besoin de closure
+                        ->relationship('user', 'firstname')
+                        ->getOptionLabelFromRecordUsing(fn ($record) => $record->getFullnameAttribute() ?: $record->email ?: 'Utilisateur #' . $record->id)
                         ->searchable()
-                        ->preload()->columnSpan(4)
+                        ->preload()
+                        ->columnSpan(4)
                         ->required(),
 
                     TextInput::make('fullname')->label('Nom complet')

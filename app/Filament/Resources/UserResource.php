@@ -31,8 +31,10 @@ use Filament\Tables\Columns\ImageColumn;
 use Filament\Forms\Components\FileUpload;
 use Filament\Tables\Columns\SelectColumn;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Tabs;
+use Filament\Forms\Components\Toggle;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Illuminate\Database\Eloquent\Builder;
@@ -234,6 +236,64 @@ class UserResource extends Resource
                             ->maxLength(1000)
                             ->columnSpan(4),
                     ])->columns(12),
+                        Tabs\Tab::make('Patient')
+                            ->schema([
+                                Toggle::make('activate_as_patient')
+                                    ->label('Activer en tant que patient')
+                                    ->helperText('Si activé, les informations patient sont obligatoires.')
+                                    ->live()
+                                    ->columnSpanFull(),
+                                TextInput::make('patient_fullname')
+                                    ->label('Nom complet')
+                                    ->maxLength(200)
+                                    ->required(fn (Get $get) => (bool) $get('activate_as_patient'))
+                                    ->columnSpan(6),
+                                DatePicker::make('patient_birthdate')
+                                    ->label('Date de naissance')
+                                    ->native(false)
+                                    ->required(fn (Get $get) => (bool) $get('activate_as_patient'))
+                                    ->columnSpan(6),
+                                Select::make('patient_gender')
+                                    ->label('Genre')
+                                    ->options(['male' => 'Homme', 'female' => 'Femme', 'other' => 'Autre'])
+                                    ->required(fn (Get $get) => (bool) $get('activate_as_patient'))
+                                    ->columnSpan(6),
+                                Select::make('patient_blood_group')
+                                    ->label('Groupe sanguin')
+                                    ->options([
+                                        'A+' => 'A+', 'A-' => 'A-', 'B+' => 'B+', 'B-' => 'B-',
+                                        'AB+' => 'AB+', 'AB-' => 'AB-', 'O+' => 'O+', 'O-' => 'O-',
+                                    ])
+                                    ->columnSpan(6),
+                                Select::make('patient_relation')
+                                    ->label('Relation')
+                                    ->options([
+                                        'self' => 'Moi-même', 'child' => 'Enfant', 'parent' => 'Parent',
+                                        'spouse' => 'Conjoint', 'sibling' => 'Frère/soeur', 'friend' => 'Ami', 'other' => 'Autre',
+                                    ])
+                                    ->default('self')
+                                    ->required(fn (Get $get) => (bool) $get('activate_as_patient'))
+                                    ->columnSpan(6),
+                                TextInput::make('patient_phone')
+                                    ->label('Téléphone patient')
+                                    ->tel()
+                                    ->maxLength(20)
+                                    ->columnSpan(6),
+                                TextInput::make('patient_email')
+                                    ->label('Email patient')
+                                    ->email()
+                                    ->maxLength(150)
+                                    ->columnSpan(6),
+                                KeyValue::make('patient_allergies')
+                                    ->label('Allergies')
+                                    ->reorderable()
+                                    ->columnSpan(6),
+                                KeyValue::make('patient_chronic_conditions')
+                                    ->label('Maladies chroniques')
+                                    ->reorderable()
+                                    ->columnSpan(6),
+                            ])->columns(12)
+                            ->visible(fn ($livewire) => $livewire instanceof CreateRecord || $livewire instanceof EditRecord || $livewire instanceof \Filament\Resources\Pages\ViewRecord),
                 ])->columnSpanFull(),
 
             ]);
@@ -549,15 +609,35 @@ class UserResource extends Resource
                 ]),
             ]);
     }
+    public static ?array $pendingPatientData = null;
+
     public static function mutateFormDataBeforeCreate(array $data): array
     {
         $data['default_role'] = User::ROLE_PATIENT; // 5
+
+        // Extraire les données patient (ne pas les envoyer au modèle User)
+        $patientKeys = array_filter(array_keys($data), fn ($k) => str_starts_with((string) $k, 'patient_') || $k === 'activate_as_patient');
+        if (! empty($patientKeys)) {
+            static::$pendingPatientData = array_intersect_key($data, array_flip($patientKeys));
+            $data = array_diff_key($data, array_flip($patientKeys));
+        }
+
+        return $data;
+    }
+
+    public static function mutateFormDataBeforeSave(array $data): array
+    {
+        $patientKeys = array_filter(array_keys($data), fn ($k) => str_starts_with((string) $k, 'patient_') || $k === 'activate_as_patient');
+        if (! empty($patientKeys)) {
+            static::$pendingPatientData = array_intersect_key($data, array_flip($patientKeys));
+            return array_diff_key($data, array_flip($patientKeys));
+        }
         return $data;
     }
     public static function getRelations(): array
     {
         return [
-            //
+            \App\Filament\Resources\UserResource\RelationManagers\PatientsRelationManager::class,
         ];
     }
 
@@ -566,6 +646,7 @@ class UserResource extends Resource
         return [
             'index'  => Pages\ListUsers::route('/'),
             'create' => Pages\CreateUser::route('/create'),
+            'view'   => Pages\ViewUser::route('/{record}'),
             'edit'   => Pages\EditUser::route('/{record}/edit'),
         ];
     }
