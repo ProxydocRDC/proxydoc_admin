@@ -16,6 +16,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Set;
 use Filament\Resources\Resource;
+use Illuminate\Database\Eloquent\Builder;
 use Filament\Tables;use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Columns\TextColumn;
 use Illuminate\Support\Facades\Auth;
@@ -133,6 +134,16 @@ class ProxyPatientResource extends Resource
                 TextColumn::make('created_at')->dateTime('Y-m-d H:i')->label('Créé'),
             ])
             ->filters([
+                Tables\Filters\Filter::make('created_at')
+                    ->form([
+                        DatePicker::make('created_from')->label('Du')->native(false),
+                        DatePicker::make('created_to')->label('Au')->native(false),
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        return $query
+                            ->when($data['created_from'] ?? null, fn (Builder $q) => $q->whereDate('created_at', '>=', $data['created_from']))
+                            ->when($data['created_to'] ?? null, fn (Builder $q) => $q->whereDate('created_at', '<=', $data['created_to']));
+                    }),
                 Tables\Filters\TernaryFilter::make('status')->label('Actif'),
                 Tables\Filters\SelectFilter::make('gender')->label('Genre')
                     ->options(['male' => 'Homme', 'female' => 'Femme', 'other' => 'Autre']),

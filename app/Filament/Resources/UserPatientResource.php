@@ -114,4 +114,14 @@ class UserPatientResource extends Resource
     {
         return false;
     }
+
+    public static function canViewAny(): bool
+    {
+        return Auth::user()?->can('view_any_user_patient_resource') ?? false;
+    }
+
+    public static function canView($record): bool
+    {
+        return Auth::user()?->can('view_user_patient_resource') ?? false;
+    }
 }

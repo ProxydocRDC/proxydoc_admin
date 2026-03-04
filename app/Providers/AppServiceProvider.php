@@ -24,8 +24,11 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         User::observe(UserObserver::class);
-       ProxyDoctor::observe(\App\Observers\ProxyDoctorObserver::class);
-        //  Gate::policy(\App\Models\Blog\Author::class, \App\Policies\Blog\AuthorPolicy::class);
-        // Gate::policy(\Ramnzys\FilamentEmailLog\Models\Email::class, \App\Policies\EmailPolicy::class);
+        ProxyDoctor::observe(\App\Observers\ProxyDoctorObserver::class);
+
+        Gate::policy(
+            \App\Filament\Resources\UserResource\Widgets\PatientStatsWidget::class,
+            \App\Policies\Widgets\PatientStatsWidgetPolicy::class
+        );
     }
 }

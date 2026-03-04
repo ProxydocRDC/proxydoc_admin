@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\UserResource\Pages;
 
 use App\Filament\Resources\UserResource;
+use App\Filament\Resources\UserResource\Widgets\PatientStatsWidget;
 use App\Filament\Resources\UserResource\Widgets\UserStatsOverview;
 use Filament\Actions;
 use Filament\Resources\Pages\ListRecords;
@@ -32,6 +33,7 @@ class ListUsers extends ListRecords
     {
         return [
             UserStatsOverview::class,
+            PatientStatsWidget::class,
         ];
     }
 }
