@@ -117,11 +117,25 @@ class UserPatientResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return Auth::user()?->can('view_any_user_patient_resource') ?? false;
+        $user = Auth::user();
+        if (! $user) {
+            return false;
+        }
+        if ($user->hasAnyRole([config('filament-shield.super_admin.name', 'super_admin'), 'Admin'])) {
+            return true;
+        }
+        return $user->can('view_any_user_patient_resource');
     }
 
     public static function canView($record): bool
     {
-        return Auth::user()?->can('view_user_patient_resource') ?? false;
+        $user = Auth::user();
+        if (! $user) {
+            return false;
+        }
+        if ($user->hasAnyRole([config('filament-shield.super_admin.name', 'super_admin'), 'Admin'])) {
+            return true;
+        }
+        return $user->can('view_user_patient_resource');
     }
 }

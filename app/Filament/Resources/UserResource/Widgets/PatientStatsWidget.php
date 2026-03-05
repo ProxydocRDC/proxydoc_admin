@@ -7,12 +7,25 @@ use App\Models\ProxyPatient;
 use BezhanSalleh\FilamentShield\Traits\HasWidgetShield;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
+use Illuminate\Support\Facades\Auth;
 
 class PatientStatsWidget extends BaseWidget
 {
     use HasWidgetShield;
 
     protected static ?int $sort = 1;
+
+    public static function canView(): bool
+    {
+        $user = Auth::user();
+        if (! $user) {
+            return false;
+        }
+        if ($user->hasAnyRole([config('filament-shield.super_admin.name', 'super_admin'), 'Admin'])) {
+            return true;
+        }
+        return $user->can('widget_PatientStatsWidget');
+    }
 
     protected function getStats(): array
     {

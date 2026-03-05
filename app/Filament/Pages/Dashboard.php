@@ -25,6 +25,8 @@ class Dashboard extends BaseDashboard
     {
         return [
             \App\Filament\Widgets\TransactionsQuickAccess::class,
+            \App\Filament\Widgets\UsersPatientsQuickAccess::class,
+            \App\Filament\Resources\UserResource\Widgets\PatientStatsWidget::class,
             \App\Filament\Widgets\WeeklyRegistrationsTable::class,
             // Statistiques
             // \App\Filament\Widgets\ServiceStatsOverview::class,
