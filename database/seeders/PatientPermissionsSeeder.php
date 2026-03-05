@@ -21,8 +21,8 @@ class PatientPermissionsSeeder extends Seeder
             'widget_PatientStatsWidget',
 
             // Permissions UserPatientResource (liste utilisateurs par statut patient)
-            'view_any_user_patient_resource',
-            'view_user_patient_resource',
+            'view_any_user::patient',
+            'view_user::patient',
 
             // Permissions ProxyPatientResource (gestion des patients - format existant)
             'view_any_proxy::patient',

@@ -14,8 +14,8 @@ return new class extends Migration
 
         $permissions = [
             'widget_PatientStatsWidget',
-            'view_any_user_patient_resource',
-            'view_user_patient_resource',
+            'view_any_user::patient',
+            'view_user::patient',
             'view_any_proxy::patient',
             'view_proxy::patient',
             'create_proxy::patient',

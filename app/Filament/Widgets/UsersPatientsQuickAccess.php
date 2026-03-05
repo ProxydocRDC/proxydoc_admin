@@ -19,7 +19,7 @@ class UsersPatientsQuickAccess extends BaseWidget
         if ($user->hasAnyRole([config('filament-shield.super_admin.name', 'super_admin'), 'Admin'])) {
             return true;
         }
-        return $user->can('view_any_user_patient_resource');
+        return $user->can('view_any_user::patient');
     }
 
     protected function getStats(): array

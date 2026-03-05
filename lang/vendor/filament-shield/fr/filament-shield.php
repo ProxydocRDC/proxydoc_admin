@@ -112,8 +112,11 @@ return [
         'main::subscription'      => 'Abonnements',
 
         'user'                    => 'Utilisateurs',
+        'user::patient'           => 'Utilisateurs & Patients',
+        'proxy::patient'          => 'Patients',
 
         // Pages / Widgets si tu veux aussi les renommer
+        'widget_PatientStatsWidget' => 'Stat. patients (3 jours)',
         'pages::shipments_tracker'   => 'Suivi des expéditions',
         'widgets::shipment_map_widget'=> 'Carte des expéditions',
     ],
