@@ -31,7 +31,7 @@ return [
     |--------------------------------------------------------------------------
     */
 
-    'nav.group' => 'Sécurité & Accè',
+    'nav.group' => 'Sécurité & Accès',
     'nav.role.label' => 'Rôles',
     'nav.role.icon' => 'heroicon-o-shield-check',
     'resource.label.role' => 'Rôle',
@@ -45,9 +45,14 @@ return [
 
     'section' => 'Section',
     'resources' => 'Ressources',
+    'resources_help' => 'Contrôle l\'accès aux listes, formulaires et actions des ressources (Patients, Utilisateurs, Commandes). Chaque case active une action précise pour ce rôle.',
     'widgets' => 'Widgets',
+    'widgets_help' => 'Contrôle la visibilité des widgets (statistiques, graphiques) sur le tableau de bord. Sans permission, le widget est masqué.',
     'pages' => 'Pages',
+    'pages_help' => 'Contrôle l\'accès aux pages personnalisées. Une page sans permission n\'apparaît pas dans le menu.',
     'custom' => 'Permissions personnalisées',
+    'custom_help' => 'Permissions créées manuellement ou par des modules, non liées aux ressources/widgets/pages standards. Utile pour des actions spécifiques ou des intégrations tierces.',
+    'custom_importance' => 'Cet onglet affiche les permissions non générées automatiquement par Shield (migrations, seeders, modules tiers). Elles permettent de gérer des accès très spécifiques sans créer une ressource complète.',
 
     /*
     |--------------------------------------------------------------------------

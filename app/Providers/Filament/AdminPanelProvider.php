@@ -76,6 +76,9 @@ class AdminPanelProvider extends PanelProvider
             ->brandLogoHeight(fn() => Auth::check() ? '3rem' : '5rem')
             ->favicon(asset('assets/images/log.png'))
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
+            ->resources([
+                \App\Filament\Resources\Shield\RoleResource::class,
+            ])
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->pages([
                 Pages\Dashboard::class,
