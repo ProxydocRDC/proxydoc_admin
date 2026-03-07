@@ -36,7 +36,7 @@ class ProxyPatientResource extends Resource
         return $form->schema([
             Group::make([
                 Section::make('Fiche patient')->schema([
-                    Hidden::make('created_by')->default(fn() => Auth::id()),
+                    Hidden::make('created_by'), // Sera défini = user_id (parent) dans mutateFormDataBeforeCreate
                     Hidden::make('updated_by')->default(fn() => Auth::id())->dehydrated(),
                     Select::make('user_id')
                         ->label('Utilisateur parent')
@@ -176,7 +176,8 @@ class ProxyPatientResource extends Resource
         if (($data['relation'] ?? null) === 'self') {
             $data['user_id'] = $data['user_id'] ?? Auth::id();
         }
-        $data['created_by'] = $data['created_by'] ?? Auth::id();
+        // Pour les patients : created_by = user parent (user_id), pas l'admin connecté
+        $data['created_by'] = $data['user_id'] ?? Auth::id();
         $data['updated_by'] = $data['updated_by'] ?? Auth::id();
         $data['status']     = $data['status'] ?? 1;
         return $data;

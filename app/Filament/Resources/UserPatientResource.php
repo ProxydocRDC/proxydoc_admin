@@ -80,7 +80,7 @@ class UserPatientResource extends Resource
                     ->action(function (User $record) {
                         ProxyPatient::create([
                             'user_id'    => $record->id,
-                            'created_by' => Auth::id(),
+                            'created_by' => $record->id, // user parent, pas l'admin connecté
                             'updated_by' => Auth::id(),
                             'status'     => 1,
                             'fullname'   => $record->getFullnameAttribute(),

@@ -90,7 +90,7 @@ class EditUser extends EditRecord
         } else {
             ProxyPatient::create(array_merge($payload, [
                 'user_id'   => $user->id,
-                'created_by' => Auth::id() ?? $user->id,
+                'created_by' => $user->id, // user parent pour les patients
             ]));
         }
 

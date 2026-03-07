@@ -11,6 +11,7 @@ use App\Models\Concerns\HasS3MediaUrls;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Notifications\Notifiable;
 use Filament\Models\Contracts\FilamentUser;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 
@@ -70,7 +71,39 @@ class User extends Authenticatable implements FilamentUser, HasName
             if ($model->status === null) {
                 $model->status = 1;
             }
+            // Génération automatique des codes promo et parrainage (6 caractères, lettres+chiffres, majuscules)
+            if (empty($model->code_promo)) {
+                $model->code_promo = static::generateUniqueCode('code_promo', $model->code_parrainage ?? null);
+            }
+            if (empty($model->code_parrainage)) {
+                $model->code_parrainage = static::generateUniqueCode('code_parrainage', $model->code_promo);
+            }
         });
+    }
+
+    /**
+     * Génère un code unique de 6 caractères (lettres et chiffres, majuscules).
+     */
+    public static function generateUniqueCode(string $column, ?string $exclude = null): string
+    {
+        $chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        $maxAttempts = 1000;
+
+        for ($attempt = 0; $attempt < $maxAttempts; $attempt++) {
+            $code = '';
+            for ($i = 0; $i < 6; $i++) {
+                $code .= $chars[random_int(0, strlen($chars) - 1)];
+            }
+            if ($code === $exclude) {
+                continue;
+            }
+            $exists = static::where($column, $code)->exists();
+            if (!$exists) {
+                return $code;
+            }
+        }
+
+        throw new \RuntimeException("Impossible de générer un code unique pour {$column} après {$maxAttempts} tentatives.");
     }
     /**
      * Get the attributes that should be cast.
@@ -149,6 +182,42 @@ class User extends Authenticatable implements FilamentUser, HasName
     public function getFullnameAttribute(): string
     {
         return trim(($this->firstname ?? '') . ' ' . ($this->lastname ?? ''));
+    }
+
+    /**
+     * Utilisateurs parrainés par cet utilisateur (leur code_parrainage = notre code_promo).
+     */
+    public function parraines()
+    {
+        return $this->hasMany(User::class, 'code_parrainage', 'code_promo');
+    }
+
+    /**
+     * Scope : utilisateurs dont le code_parrainage correspond au code_promo du parrain donné.
+     */
+    public function scopeParrainesDe(Builder $query, User $parrain): Builder
+    {
+        return $query->where('code_parrainage', $parrain->code_promo);
+    }
+
+    /**
+     * Régénère le code promo pour un utilisateur existant.
+     */
+    public function regenerateCodePromo(): string
+    {
+        $this->code_promo = static::generateUniqueCode('code_promo', $this->code_parrainage);
+        $this->saveQuietly();
+        return $this->code_promo;
+    }
+
+    /**
+     * Régénère le code parrainage pour un utilisateur existant.
+     */
+    public function regenerateCodeParrainage(): string
+    {
+        $this->code_parrainage = static::generateUniqueCode('code_parrainage', $this->code_promo);
+        $this->saveQuietly();
+        return $this->code_parrainage;
     }
 
     /**

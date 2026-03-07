@@ -48,7 +48,7 @@ class CreateUser extends CreateRecord
             'allergies'         => $data['patient_allergies'] ?? null,
             'chronic_conditions' => $data['patient_chronic_conditions'] ?? null,
             'status'            => 1,
-            'created_by'        => Auth::id() ?? $user->id,
+            'created_by'        => $user->id, // user parent pour les patients
             'updated_by'        => Auth::id() ?? $user->id,
         ];
 

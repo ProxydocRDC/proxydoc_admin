@@ -73,7 +73,7 @@ class PatientsRelationManager extends RelationManager
                 \Filament\Tables\Actions\CreateAction::make()
                     ->mutateFormDataUsing(function (array $data): array {
                         $data['user_id'] = $this->getOwnerRecord()->id;
-                        $data['created_by'] = Auth::id();
+                        $data['created_by'] = $this->getOwnerRecord()->id; // user parent pour les patients
                         $data['updated_by'] = Auth::id();
                         $data['status'] = 1;
                         return $data;

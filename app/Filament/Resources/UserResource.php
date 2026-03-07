@@ -218,10 +218,25 @@ class UserResource extends Resource
                             ->content('Généré automatiquement (unique)')
                             ->visible(fn ($livewire) => $livewire instanceof CreateRecord)
                             ->columnSpan(4),
+                        Placeholder::make('codes_info')
+                            ->label('Codes promo / parrainage')
+                            ->content('Générés automatiquement à la création (6 caractères, unique)')
+                            ->visible(fn ($livewire) => $livewire instanceof CreateRecord)
+                            ->columnSpan(4),
                         Placeholder::make('otp_display')
                             ->label('OTP actuel')
                             ->content(fn ($record) => $record?->otp ?? '—')
                             ->visible(fn ($livewire) => $livewire instanceof EditRecord)
+                            ->columnSpan(4),
+                        Placeholder::make('code_promo_display')
+                            ->label('Code promo')
+                            ->content(fn ($record) => $record?->code_promo ?? '—')
+                            ->visible(fn ($livewire) => $livewire instanceof EditRecord || $livewire instanceof \Filament\Resources\Pages\ViewRecord)
+                            ->columnSpan(4),
+                        Placeholder::make('code_parrainage_display')
+                            ->label('Code parrainage')
+                            ->content(fn ($record) => $record?->code_parrainage ?? '—')
+                            ->visible(fn ($livewire) => $livewire instanceof EditRecord || $livewire instanceof \Filament\Resources\Pages\ViewRecord)
                             ->columnSpan(4),
                         TextInput::make('ip_address')
                             ->label('Adresse IP')
@@ -406,6 +421,18 @@ class UserResource extends Resource
                 TextColumn::make('otp')
                     ->toggleable(isToggledHiddenByDefault: true)
                     ->searchable(),
+                TextColumn::make('code_promo')
+                    ->label('Code promo')
+                    ->searchable()
+                    ->toggleable()
+                    ->copyable()
+                    ->copyMessage('Code copié')
+                    ->copyMessageDuration(1500)
+                    ->tooltip('Cliquer pour copier'),
+                TextColumn::make('code_parrainage')
+                    ->label('Code parrainage')
+                    ->searchable()
+                    ->toggleable(),
                 TextColumn::make('country')
                     ->label('Pays')
                     ->searchable(),
@@ -480,6 +507,30 @@ class UserResource extends Resource
                 4 => 'Validé, attente infos',
                 5 => 'En cours (OTP à valider)',
             ]),
+        Filter::make('parraine_par')
+            ->label('Parrainé par')
+            ->form([
+                Select::make('parrain_id')
+                    ->label('Parrain (code promo)')
+                    ->options(
+                        User::query()
+                            ->whereNotNull('code_promo')
+                            ->where('code_promo', '!=', '')
+                            ->orderBy('firstname')
+                            ->get()
+                            ->mapWithKeys(fn (User $u) => [$u->id => $u->getFullnameAttribute() . ' (' . $u->code_promo . ')'])
+                    )
+                    ->searchable()
+                    ->placeholder('— Tous —'),
+            ])
+            ->query(function (Builder $query, array $data): Builder {
+                if (empty($data['parrain_id'])) {
+                    return $query;
+                }
+                $parrain = User::find($data['parrain_id']);
+                return $parrain ? $query->parrainesDe($parrain) : $query;
+            })
+            ->indicateUsing(fn (array $data) => ! empty($data['parrain_id']) ? ['Parrainé par un utilisateur sélectionné' => true] : []),
         ])
             ->persistFiltersInSession()
             ->filtersFormColumns(1)
@@ -539,6 +590,22 @@ class UserResource extends Resource
                                 ->success()
                                 ->send();
                         }),
+                    Action::make('generateCodePromo')
+                        ->label('Générer code promo')
+                        ->icon('heroicon-o-key')
+                        ->color('info')
+                        ->action(function (User $record) {
+                            $record->regenerateCodePromo();
+                            Notification::make()
+                                ->title('Code promo généré')
+                                ->body('Nouveau code : ' . $record->code_promo)
+                                ->success()
+                                ->send();
+                        })
+                        ->requiresConfirmation()
+                        ->modalHeading('Générer un nouveau code promo')
+                        ->modalDescription(fn (User $record) => "Un nouveau code promo unique sera généré pour {$record->getFullnameAttribute()}. L'ancien code sera remplacé.")
+                        ->visible(fn (User $record) => true),
                     Tables\Actions\ViewAction::make(),
                     Tables\Actions\EditAction::make(),
                     TrashAction::make(),
@@ -546,6 +613,26 @@ class UserResource extends Resource
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
+                    BulkAction::make('generateCodePromoBulk')
+                        ->label('Générer code promo')
+                        ->icon('heroicon-o-key')
+                        ->color('info')
+                        ->deselectRecordsAfterCompletion()
+                        ->action(function (\Illuminate\Database\Eloquent\Collection $records) {
+                            $count = 0;
+                            foreach ($records as $record) {
+                                $record->regenerateCodePromo();
+                                $count++;
+                            }
+                            Notification::make()
+                                ->title('Codes promo générés')
+                                ->body("{$count} code(s) promo généré(s) avec succès.")
+                                ->success()
+                                ->send();
+                        })
+                        ->requiresConfirmation()
+                        ->modalHeading('Générer les codes promo')
+                        ->modalDescription('Un nouveau code promo unique sera généré pour chaque utilisateur sélectionné.'),
                     BulkAction::make('clearProfileBulk')
                         ->label('Supprimer photos de profil (en masse)')
                         ->icon('heroicon-m-user-minus')
