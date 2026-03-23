@@ -46,20 +46,26 @@ class ProxyAppointmentResource extends Resource
                         ->onColor('success')->offColor('danger')->required()
                         ->columnSpan(4),
 
-                    // Relations (adapte les relationships si tes modèles existent)
+                    // Relations (getOptionLabelFromRecordUsing évite l'erreur "label must be string, null given")
                     Select::make('patient_id')->label('Patient')
-                        ->relationship('patient', 'fullname') // ou 'name' selon ton modèle
+                        ->relationship('patient', 'fullname')
+                        ->getOptionLabelFromRecordUsing(fn ($record) => $record->fullname ?? ('Patient #' . $record->id))
                         ->searchable()->preload()->required()->columnSpan(4),
 
                     Select::make('doctor_user_id')->label('Médecin (user)')
-                        ->relationship('doctorUser', 'email') // relation vers User
+                        ->relationship('doctorUser', 'email')
+                        ->getOptionLabelFromRecordUsing(fn ($record) => $record->email ?: ($record->fullname ?: 'User #' . $record->id))
                         ->searchable()->preload()->columnSpan(4),
 
                     Select::make('service_id')->label('Service')
-                        ->relationship('service', 'name')->searchable()->preload()->required()->columnSpan(4),
+                        ->relationship('service', 'name')
+                        ->getOptionLabelFromRecordUsing(fn ($record) => $record->name ?? ('Service #' . $record->id))
+                        ->searchable()->preload()->required()->columnSpan(4),
 
                     Select::make('schedule_id')->label('Agenda')
-                        ->relationship('schedule', 'id')->preload()->columnSpan(4),
+                        ->relationship('schedule', 'id')
+                        ->getOptionLabelFromRecordUsing(fn ($record) => 'Agenda #' . $record->id)
+                        ->preload()->columnSpan(4),
 
                     DateTimePicker::make('scheduled_at')->label('Date & heure')
                         ->seconds(false)->required()->columnSpan(4),
