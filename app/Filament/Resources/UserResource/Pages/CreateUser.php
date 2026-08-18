@@ -13,9 +13,16 @@ class CreateUser extends CreateRecord
 {
     protected static string $resource = UserResource::class;
 
+    /**
+     * Prépare les données avant insertion : retire les champs patient virtuels
+     * puis renseigne account_id, created_by et un OTP unique.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        $data = parent::mutateFormDataBeforeCreate($data);
+        $data = UserResource::mutateFormDataBeforeCreate($data);
 
         $data['account_id'] = null;
         $data['created_by'] = Auth::id() ?? 0;
@@ -24,11 +31,19 @@ class CreateUser extends CreateRecord
         return $data;
     }
 
+    /**
+     * Crée ou met à jour la fiche patient si le toggle a été activé.
+     */
     protected function afterCreate(): void
     {
         $this->syncPatientFromFormData($this->record);
     }
 
+    /**
+     * Synchronise proxy_patients à partir des champs extraits du formulaire.
+     *
+     * @param  User  $user  Utilisateur venant d'être créé
+     */
     protected function syncPatientFromFormData(User $user): void
     {
         $data = UserResource::$pendingPatientData;

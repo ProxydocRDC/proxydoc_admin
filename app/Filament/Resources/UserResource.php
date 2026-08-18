@@ -698,28 +698,48 @@ class UserResource extends Resource
     }
     public static ?array $pendingPatientData = null;
 
+    /**
+     * Extraie les champs patient du formulaire pour ne pas les insérer dans main_users.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
     public static function mutateFormDataBeforeCreate(array $data): array
     {
-        $data['default_role'] = User::ROLE_PATIENT; // 5
-
-        // Extraire les données patient (ne pas les envoyer au modèle User)
-        $patientKeys = array_filter(array_keys($data), fn ($k) => str_starts_with((string) $k, 'patient_') || $k === 'activate_as_patient');
-        if (! empty($patientKeys)) {
-            static::$pendingPatientData = array_intersect_key($data, array_flip($patientKeys));
-            $data = array_diff_key($data, array_flip($patientKeys));
-        }
-
-        return $data;
+        return static::extractPendingPatientData($data);
     }
 
+    /**
+     * Extraie les champs patient du formulaire avant mise à jour de l'utilisateur.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
     public static function mutateFormDataBeforeSave(array $data): array
     {
-        $patientKeys = array_filter(array_keys($data), fn ($k) => str_starts_with((string) $k, 'patient_') || $k === 'activate_as_patient');
-        if (! empty($patientKeys)) {
-            static::$pendingPatientData = array_intersect_key($data, array_flip($patientKeys));
-            return array_diff_key($data, array_flip($patientKeys));
+        return static::extractPendingPatientData($data);
+    }
+
+    /**
+     * Sépare les champs virtuels patient (activate_as_patient, patient_*) du payload User.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected static function extractPendingPatientData(array $data): array
+    {
+        $patientKeys = array_filter(
+            array_keys($data),
+            fn ($k) => str_starts_with((string) $k, 'patient_') || $k === 'activate_as_patient'
+        );
+
+        if (empty($patientKeys)) {
+            return $data;
         }
-        return $data;
+
+        static::$pendingPatientData = array_intersect_key($data, array_flip($patientKeys));
+
+        return array_diff_key($data, array_flip($patientKeys));
     }
     public static function getRelations(): array
     {
